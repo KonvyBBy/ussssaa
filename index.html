@@ -17,27 +17,24 @@
     .logo{width:56px;height:56px;border-radius:12px;background:linear-gradient(135deg,#fff,#ccc);display:flex;align-items:center;justify-content:center;color:#000;font-weight:700; font-size:20px;box-shadow:0 8px 30px rgba(255,255,255,0.06) inset}
     h1{margin:0;font-size:20px}
     p.lead{margin:0;color:var(--muted);font-size:13px}
-
     .grid{display:grid;grid-template-columns:1fr 420px;gap:28px}
     @media (max-width:880px){.grid{grid-template-columns:1fr}}
-
     .left{display:flex;flex-direction:column;gap:12px}
     .card{background:transparent;padding:18px;border-radius:10px;border:1px solid rgba(255,255,255,0.03)}
-
     .form{display:flex;flex-direction:column;gap:10px}
     label{font-size:13px;color:var(--muted)}
     input[type=text], input[type=password], input[type=email]{background:transparent;border:1px solid rgba(255,255,255,0.08);padding:10px;border-radius:8px;color:var(--fg);font-size:15px}
     button{background:var(--fg); color:var(--bg); border:none;padding:10px 12px;border-radius:10px;font-weight:700;cursor:pointer}
     .muted{color:var(--muted);font-size:13px}
-
     .switcher{display:flex;gap:8px;margin-bottom:8px}
     .switcher button{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--fg);padding:8px 10px;border-radius:8px;font-weight:600}
     .switcher button.active{background:rgba(255,255,255,0.92);color:var(--bg)}
-
     .center{display:flex;align-items:center;justify-content:center;height:100%}
-
     footer{margin-top:18px;color:var(--muted);font-size:13px;text-align:center}
     .btn-ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);padding:8px 10px;border-radius:8px;color:var(--fg);cursor:pointer}
+    .hidden{display:none;}
+    #owner-controls{margin-top:12px;}
+    #owner-controls input{width:100%;margin-bottom:6px;}
   </style>
 </head>
 <body>
@@ -45,8 +42,8 @@
     <header>
       <div class="logo">K</div>
       <div>
-        <h1>Konvy Accounts33</h1>
-        <p class="lead">Black & White demo — sign up, sign in, and land on a blank dashboard.</p>
+        <h1>Konvy Accounts</h1>
+        <p class="lead">Black & White demo — login, redeem keys, and manage products if owner.</p>
       </div>
     </header>
 
@@ -95,30 +92,43 @@
               <div class="muted" id="user-email">Not signed in</div>
             </div>
             <div>
-              <button id="logout-btn" class="btn-ghost" style="display:none">Logout</button>
+              <button id="logout-btn" class="btn-ghost hidden">Logout</button>
             </div>
           </div>
 
           <div id="dash-content" style="min-height:220px;display:flex;align-items:center;justify-content:center">
             <div class="center muted">Blank dashboard — nothing here yet.</div>
           </div>
+
+          <!-- Redeem key input -->
+          <div id="redeem-section" class="hidden" style="margin-top:12px;">
+            <input type="text" id="redeem-key-input" placeholder="Enter product key">
+            <button id="redeem-key-btn">Redeem Key</button>
+          </div>
+
+          <!-- Owner controls -->
+          <div id="owner-controls" class="hidden">
+            <h4>Owner Controls: Create Key</h4>
+            <input type="text" id="owner-product-name" placeholder="Product Name">
+            <input type="text" id="owner-key" placeholder="Key">
+            <button id="create-key-btn">Create Key</button>
+          </div>
         </div>
       </div>
     </div>
 
     <footer>
-      Built with Firebase Authentication — works across devices.
+      Built with Firebase Authentication & Firestore — works across devices.
     </footer>
   </div>
 
-  <!-- Firebase SDK -->
+  <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
   <script>
-    // ======================
-    // 🔹 YOUR FIREBASE CONFIG
-    // ======================
+    // Firebase config
     const firebaseConfig = {
       apiKey: "AIzaSyD2M35gv68ILULRqlRVlO5E4oLCXbj1RaM",
       authDomain: "konvy-57910.firebaseapp.com",
@@ -130,6 +140,7 @@
     };
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
+    const db = firebase.firestore();
 
     // UI elements
     const btnLogin = document.getElementById('btn-login');
@@ -140,6 +151,13 @@
     const welcomeEl = document.getElementById('welcome');
     const userEmailEl = document.getElementById('user-email');
     const dashContent = document.getElementById('dash-content');
+    const redeemSection = document.getElementById('redeem-section');
+    const redeemInput = document.getElementById('redeem-key-input');
+    const redeemBtn = document.getElementById('redeem-key-btn');
+    const ownerControls = document.getElementById('owner-controls');
+    const ownerProductName = document.getElementById('owner-product-name');
+    const ownerKeyInput = document.getElementById('owner-key');
+    const createKeyBtn = document.getElementById('create-key-btn');
 
     // Switch tabs
     btnLogin.addEventListener('click', ()=>{ btnLogin.classList.add('active'); btnSignup.classList.remove('active'); loginForm.style.display='block'; signupForm.style.display='none'; });
@@ -154,8 +172,8 @@
 
       try {
         const userCredential = await auth.createUserWithEmailAndPassword(email,password);
-        localStorage.setItem('username', username); // store username
-        renderSignedIn(username,email);
+        await db.collection("users").doc(userCredential.user.uid).set({username, role:"user"});
+        renderSignedIn(username,email,"user");
       } catch(error){
         alert(error.message);
       }
@@ -169,8 +187,9 @@
 
       try {
         const userCredential = await auth.signInWithEmailAndPassword(email,password);
-        const username = localStorage.getItem('username') || "User";
-        renderSignedIn(username,email);
+        const userDoc = await db.collection("users").doc(userCredential.user.uid).get();
+        const userData = userDoc.data();
+        renderSignedIn(userData.username,email,userData.role);
       } catch(error){
         alert(error.message);
       }
@@ -183,32 +202,93 @@
     });
 
     // Render functions
-    function renderSignedIn(username,email){
+    function renderSignedIn(username,email,role){
       welcomeEl.textContent = `Hi, ${username}`;
       userEmailEl.textContent = email;
-      logoutBtn.style.display='inline-block';
-      dashContent.innerHTML = '<div class="center muted">Blank dashboard — nothing here yet.</div>';
+      logoutBtn.classList.remove('hidden');
+      loginForm.style.display='none';
+      signupForm.style.display='none';
       document.querySelector('.card .switcher').style.display='none';
-      document.getElementById('forms').style.display='none';
+      dashContent.innerHTML = '<div class="center muted">Blank dashboard — redeem keys or view orders.</div>';
+      redeemSection.classList.remove('hidden');
+      if(role==="owner") ownerControls.classList.remove('hidden');
+      showOrderHistory();
     }
 
     function renderSignedOut(){
       welcomeEl.textContent = 'Welcome';
       userEmailEl.textContent = 'Not signed in';
-      logoutBtn.style.display='none';
+      logoutBtn.classList.add('hidden');
       document.querySelector('.card .switcher').style.display='flex';
-      document.getElementById('forms').style.display='block';
+      loginForm.style.display='block';
+      signupForm.style.display='none';
       dashContent.innerHTML = '<div class="center muted">Blank dashboard — nothing here yet.</div>';
+      redeemSection.classList.add('hidden');
+      ownerControls.classList.add('hidden');
     }
 
     // Auto-check auth state
-    auth.onAuthStateChanged((user)=>{
+    auth.onAuthStateChanged(async (user)=>{
       if(user){
-        const username = localStorage.getItem('username') || "User";
-        renderSignedIn(username,user.email);
+        const userDoc = await db.collection("users").doc(user.uid).get();
+        const userData = userDoc.data();
+        renderSignedIn(userData.username,user.email,userData.role);
       } else {
         renderSignedOut();
       }
+    });
+
+    // Redeem key
+    redeemBtn.addEventListener('click', async ()=>{
+      const keyInput = redeemInput.value.trim();
+      if(!keyInput) return alert("Enter a key");
+      const keyDocRef = db.collection("keys").doc(keyInput);
+      const keyDoc = await keyDocRef.get();
+      if(!keyDoc.exists) return alert("Invalid key");
+      const keyData = keyDoc.data();
+      if(keyData.redeemedBy) return alert("Key already redeemed");
+
+      await keyDocRef.update({redeemedBy: auth.currentUser.uid, redeemedAt: firebase.firestore.FieldValue.serverTimestamp()});
+      await db.collection("orders").add({userId: auth.currentUser.uid, key: keyInput, product: keyData.product, redeemedAt: firebase.firestore.FieldValue.serverTimestamp()});
+
+      // Owner special key
+      if(keyInput==="KDFIHFdawdd124345#$@#FIGwdwdaHE@"){
+        await db.collection("users").doc(auth.currentUser.uid).update({role:"owner"});
+        alert("You are now an Owner!");
+        ownerControls.classList.remove('hidden');
+      } else {
+        alert(`Redeemed ${keyData.product} successfully!`);
+      }
+      showOrderHistory();
+      redeemInput.value="";
+    });
+
+    // Show order history
+    async function showOrderHistory(){
+      const snapshot = await db.collection("orders").where("userId","==",auth.currentUser.uid).orderBy("redeemedAt","desc").get();
+      if(snapshot.empty){
+        dashContent.innerHTML = '<div class="center muted">No orders yet.</div>';
+        return;
+      }
+      dashContent.innerHTML = snapshot.docs.map(doc=>{
+        const d = doc.data();
+        const date = d.redeemedAt ? d.redeemedAt.toDate().toLocaleString() : "-";
+        return `<div>${d.product} — Redeemed at: ${date}</div>`;
+      }).join("");
+    }
+
+    // Owner creates new key
+    createKeyBtn.addEventListener('click', async ()=>{
+      const product = ownerProductName.value.trim();
+      const key = ownerKeyInput.value.trim();
+      if(!product || !key) return alert("Enter product name and key");
+      const keyDocRef = db.collection("keys").doc(key);
+      const keyDoc = await keyDocRef.get();
+      if(keyDoc.exists) return alert("Key already exists");
+      await keyDocRef.set({product, redeemedBy:null});
+      alert(`Key for "${product}" created!`);
+      ownerProductName.value="";
+      ownerKeyInput.value="";
     });
   </script>
 </body>
