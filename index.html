@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Konvy Accounts</title>
+<title>Konvy Accounts — Owner Panel</title>
 <style>
-:root{ --bg:#000; --fg:#fff; --muted:#bdbdbd; --accent:#fff; --green:#0f0; --red:#f33; --orange:#fa0; }
+:root{ --bg:#000; --fg:#fff; --muted:#bdbdbd; --accent:#fff; --green:#0f0; --red:#f33; --orange:#f90;}
 *{box-sizing:border-box}
 html,body{height:100%;margin:0;font-family:Inter,system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial;color:var(--fg);background:var(--bg);}
 body{display:flex;flex-direction:column;}
@@ -33,6 +33,9 @@ th,td{padding:8px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.2);
 .status-unused{color:var(--green);font-weight:700;}
 .status-pending{color:var(--orange);font-weight:700;}
 .status-complete{color:var(--green);font-weight:700;}
+.delete-btn{background:red;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;cursor:pointer;}
+textarea{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:transparent;color:var(--fg);margin-bottom:8px;}
+.message-card{border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:8px;margin-bottom:6px;}
 </style>
 </head>
 <body>
@@ -99,7 +102,7 @@ th,td{padding:8px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.2);
       <h2>My Orders</h2>
       <table>
         <thead>
-          <tr><th>Product</th><th>Redeemed At</th><th>Status</th></tr>
+          <tr><th>Product</th><th>Key</th><th>Status</th><th>Redeemed At</th></tr>
         </thead>
         <tbody id="orders-list"></tbody>
       </table>
@@ -107,8 +110,13 @@ th,td{padding:8px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.2);
 
     <div id="tickets-view" class="hidden">
       <h2>Tickets</h2>
-      <div id="ticket-box"></div>
-      <div id="ticket-controls"></div>
+      <div id="ticket-container" class="card">
+        <button id="open-ticket-btn">Open Ticket</button>
+        <div id="ticket-messages" style="margin-top:12px;"></div>
+        <textarea id="ticket-input" placeholder="Type message..." class="hidden"></textarea>
+        <button id="ticket-send-btn" class="hidden">Send</button>
+        <button id="close-ticket-btn" class="hidden">Close Ticket</button>
+      </div>
     </div>
 
     <div id="owner-view" class="hidden">
@@ -121,8 +129,9 @@ th,td{padding:8px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.2);
       </div>
       <div class="card">
         <h4>All Keys</h4>
+        <input type="text" id="search-keys" placeholder="Search keys...">
         <table>
-          <thead><tr><th>Key</th><th>Product</th><th>Status</th><th>Redeemed By</th></tr></thead>
+          <thead><tr><th>Key</th><th>Product</th><th>Status</th><th>Redeemed By</th><th>Delete</th></tr></thead>
           <tbody id="keys-list"></tbody>
         </table>
       </div>
@@ -130,7 +139,7 @@ th,td{padding:8px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.2);
   </div>
 </main>
 
-<footer>Built with Firebase</footer>
+<footer>Built with Firebase — works across devices.</footer>
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
@@ -152,42 +161,196 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 // Elements
+const welcomeEl=document.getElementById('welcome');
+const userEmailEl=document.getElementById('user-email');
+const logoutBtn=document.getElementById('logout-btn');
+const dashboardView=document.getElementById('dashboard-view');
+const redeemView=document.getElementById('redeem-view');
+const ordersView=document.getElementById('orders-view');
+const ownerView=document.getElementById('owner-view');
+const ticketsView=document.getElementById('tickets-view');
+const redeemInput=document.getElementById('redeem-key-input');
+const redeemBtn=document.getElementById('redeem-key-btn');
+const ordersList=document.getElementById('orders-list');
+const ownerControlsBtn=document.getElementById('menu-owner');
+const ownerProductName=document.getElementById('owner-product-name');
+const ownerKeyInput=document.getElementById('owner-key');
+const createKeyBtn=document.getElementById('create-key-btn');
+const keysList=document.getElementById('keys-list');
+const searchKeys=document.getElementById('search-keys');
 const authScreen=document.getElementById('auth-screen');
-const btnLogin=document.getElementById('btn-login');
-const btnSignup=document.getElementById('btn-signup');
-const loginForm=document.getElementById('login-form');
-const signupForm=document.getElementById('signup-form');
+const ticketContainer=document.getElementById("ticket-container");
+const ticketMessages=document.getElementById("ticket-messages");
+const ticketInput=document.getElementById("ticket-input");
+const ticketSendBtn=document.getElementById("ticket-send-btn");
+const openTicketBtn=document.getElementById("open-ticket-btn");
+const closeTicketBtn=document.getElementById("close-ticket-btn");
 
-btnLogin.addEventListener("click", ()=>{btnLogin.classList.add("active");btnSignup.classList.remove("active");loginForm.style.display="block";signupForm.style.display="none";});
-btnSignup.addEventListener("click", ()=>{btnSignup.classList.add("active");btnLogin.classList.remove("active");loginForm.style.display="none";signupForm.style.display="block";});
+// Menu buttons
+document.getElementById('menu-dashboard').addEventListener('click',()=>switchView('dashboard'));
+document.getElementById('menu-redeem').addEventListener('click',()=>switchView('redeem'));
+document.getElementById('menu-orders').addEventListener('click',()=>switchView('orders'));
+document.getElementById('menu-tickets').addEventListener('click',()=>switchView('tickets'));
+document.getElementById('menu-owner').addEventListener('click',()=>switchView('owner'));
+function switchView(view){
+  dashboardView.classList.add('hidden');
+  redeemView.classList.add('hidden');
+  ordersView.classList.add('hidden');
+  ticketsView.classList.add('hidden');
+  ownerView.classList.add('hidden');
+  document.querySelectorAll('.sidebar button').forEach(b=>b.classList.remove('active'));
+  if(view==='dashboard'){dashboardView.classList.remove('hidden'); document.getElementById('menu-dashboard').classList.add('active');}
+  if(view==='redeem'){redeemView.classList.remove('hidden'); document.getElementById('menu-redeem').classList.add('active');}
+  if(view==='orders'){ordersView.classList.remove('hidden'); document.getElementById('menu-orders').classList.add('active');}
+  if(view==='tickets'){ticketsView.classList.remove('hidden'); document.getElementById('menu-tickets').classList.add('active');}
+  if(view==='owner'){ownerView.classList.remove('hidden'); document.getElementById('menu-owner').classList.add('active');}
+}
+
+// AUTH SWITCH
+const btnLogin = document.getElementById("btn-login");
+const btnSignup = document.getElementById("btn-signup");
+const loginForm = document.getElementById("login-form");
+const signupForm = document.getElementById("signup-form");
+btnLogin.addEventListener("click", ()=>{btnLogin.classList.add("active"); btnSignup.classList.remove("active"); loginForm.style.display="block"; signupForm.style.display="none";});
+btnSignup.addEventListener("click", ()=>{btnSignup.classList.add("active"); btnLogin.classList.remove("active"); loginForm.style.display="none"; signupForm.style.display="block";});
 
 // Signup
 signupForm.addEventListener("submit", async e=>{
   e.preventDefault();
-  const username=document.getElementById("signup-username").value.trim();
-  const email=document.getElementById("signup-email").value.trim();
-  const password=document.getElementById("signup-password").value;
+  const username = document.getElementById("signup-username").value.trim();
+  const email = document.getElementById("signup-email").value.trim();
+  const password = document.getElementById("signup-password").value;
   try{
-    const cred=await auth.createUserWithEmailAndPassword(email,password);
-    await db.collection("users").doc(cred.user.uid).set({username,role:"user"});
-    alert("Signup successful! Please login.");
-  }catch(err){alert(err.message);}
+    const userCredential = await auth.createUserWithEmailAndPassword(email,password);
+    await db.collection("users").doc(userCredential.user.uid).set({username, role:"user"});
+    alert("Signup successful!");
+  } catch(err){ alert(err.message); }
 });
 
 // Login
 loginForm.addEventListener("submit", async e=>{
   e.preventDefault();
-  const email=document.getElementById("login-email").value.trim();
-  const password=document.getElementById("login-password").value;
-  try{await auth.signInWithEmailAndPassword(email,password);}catch(err){alert(err.message);}
+  const email = document.getElementById("login-email").value.trim();
+  const password = document.getElementById("login-password").value;
+  try{ await auth.signInWithEmailAndPassword(email,password); } 
+  catch(err){ alert(err.message); }
 });
 
-// Auth state
+// OWNER SPECIAL KEY
+const OWNER_KEY="KDFIHFdawdd124345#$@#FIGwdwdaHE@";
+db.collection("keys").doc(OWNER_KEY).get().then(doc=>{if(!doc.exists){db.collection("keys").doc(OWNER_KEY).set({product:"Owner Access", role:"owner", used:false})}});
+
+// Load orders
+async function loadOrders(){
+  ordersList.innerHTML="";
+  const user = auth.currentUser;
+  if(!user) return;
+  const snapshot = await db.collection("orders").where("uid","==",user.uid).get();
+  if(snapshot.empty){ ordersList.innerHTML="<tr><td colspan='4' style='color:var(--muted)'>No orders yet</td></tr>"; return;}
+  snapshot.forEach(doc=>{
+    const d = doc.data();
+    const tr=document.createElement("tr");
+    const statusClass = d.status==="Complete"?"status-complete":"status-pending";
+    tr.innerHTML=`<td>${d.product}</td><td>${d.key}</td><td class="${statusClass}">${d.status||"Pending"}</td><td>${new Date(d.redeemedAt.seconds*1000).toLocaleString()}</td>`;
+    ordersList.appendChild(tr);
+  });
+}
+
+// Load keys for owner
+async function loadKeys(){
+  keysList.innerHTML="";
+  const snapshot = await db.collection("keys").get();
+  snapshot.forEach(doc=>{
+    const d = doc.data();
+    const tr=document.createElement("tr");
+    const statusClass = d.used ? "status-used" : "status-unused";
+    tr.innerHTML=`
+      <td>${doc.id}</td>
+      <td>${d.product}</td>
+      <td class="${statusClass}">${d.used ? "Used":"Unused"}</td>
+      <td>${d.redeemedBy||"-"}</td>
+      <td><span class="delete-btn" data-key="${doc.id}">Delete</span></td>
+    `;
+    keysList.appendChild(tr);
+  });
+  document.querySelectorAll(".delete-btn").forEach(btn=>{
+    btn.addEventListener("click", async ()=>{
+      const key = btn.dataset.key;
+      if(confirm(`Delete key ${key}?`)){
+        await db.collection("keys").doc(key).delete();
+        loadKeys();
+      }
+    });
+  });
+}
+
+// Search keys
+searchKeys.addEventListener("input", ()=>{
+  const filter = searchKeys.value.toLowerCase();
+  document.querySelectorAll("#keys-list tr").forEach(tr=>{
+    tr.style.display = tr.textContent.toLowerCase().includes(filter) ? "" : "none";
+  });
+});
+
+// Redeem
+redeemBtn.addEventListener("click", async ()=>{
+  const key = redeemInput.value.trim();
+  const user = auth.currentUser;
+  if(!key || !user) return alert("Enter key.");
+  const keyDoc = await db.collection("keys").doc(key).get();
+  if(!keyDoc.exists) return alert("Invalid key.");
+  const data = keyDoc.data();
+  if(data.used) return alert("Key already used.");
+  if(key===OWNER_KEY){
+    await db.collection("users").doc(user.uid).update({role:"owner"});
+    alert("You are now an Owner!");
+    loadKeys();
+    return;
+  }
+  await db.collection("keys").doc(key).update({used:true, redeemedBy:user.uid});
+  await db.collection("orders").add({uid:user.uid, product:data.product, key:key, redeemedAt:new Date(), status:"Pending"});
+  alert(`Redeemed ${data.product}`);
+  loadOrders();
+  loadKeys();
+});
+
+// Create key
+createKeyBtn.addEventListener("click", async ()=>{
+  const product = ownerProductName.value.trim();
+  const key = ownerKeyInput.value.trim();
+  if(!product || !key) return alert("Enter product and key");
+  const exists = await db.collection("keys").doc(key).get();
+  if(exists.exists) return alert("Key already exists");
+  await db.collection("keys").doc(key).set({product, used:false});
+  ownerProductName.value="";
+  ownerKeyInput.value="";
+  loadKeys();
+  alert("Key created!");
+});
+
+// Logout
+logoutBtn.addEventListener("click",()=>auth.signOut());
+
+// Force login and auth state
 auth.onAuthStateChanged(async user=>{
   if(user){
     authScreen.style.display="none";
-  }else{
+    document.querySelector("main").style.display="flex";
+    document.querySelector("header").style.display="flex";
+    logoutBtn.classList.remove("hidden");
+    userEmailEl.textContent=user.email;
+    const doc = await db.collection("users").doc(user.uid).get();
+    const userData = doc.data() || {username:"User", role:"user"};
+    if(userData.role==="owner") ownerControlsBtn.classList.remove("hidden");
+    else ownerControlsBtn.classList.add("hidden");
+    loadOrders();
+    loadKeys();
+  } else {
     authScreen.style.display="flex";
+    document.querySelector("main").style.display="none";
+    document.querySelector("header").style.display="none";
+    logoutBtn.classList.add("hidden");
+    userEmailEl.textContent="Not signed in";
   }
 });
 </script>
