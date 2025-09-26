@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Konvy Accounts — Full Screen Dashboard</title>
+<title>Konvy Accounts</title>
 <style>
-:root{ --bg:#000; --fg:#fff; --muted:#bdbdbd; --accent:#fff; }
+:root{ --bg:#000; --fg:#fff; --muted:#bdbdbd; --accent:#fff; --green:#0f0; --red:#f33; }
 *{box-sizing:border-box}
 html,body{height:100%;margin:0;font-family:Inter,system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial;color:var(--fg);background:var(--bg);}
 body{display:flex;flex-direction:column;}
@@ -24,12 +24,13 @@ button{padding:10px;border:none;border-radius:8px;background:var(--fg);color:var
 table{width:100%;border-collapse:collapse;margin-top:12px;}
 th,td{padding:8px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.2);}
 .hidden{display:none;}
-footer{height:40px;text-align:center;color:var(--muted);border-top:1px solid rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:center;}
 #auth-screen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:1000;}
 #auth-screen .card{max-width:360px;width:100%;padding:24px;}
 .switcher{display:flex;gap:8px;margin-bottom:12px;}
 .switcher button{background:transparent;border:1px solid rgba(255,255,255,0.1);color:var(--fg);padding:8px;border-radius:8px;flex:1;font-weight:600;cursor:pointer;}
 .switcher button.active{background:var(--accent);color:var(--bg);}
+.status-used{color:var(--red);font-weight:700;}
+.status-unused{color:var(--green);font-weight:700;}
 </style>
 </head>
 <body>
@@ -93,7 +94,7 @@ footer{height:40px;text-align:center;color:var(--muted);border-top:1px solid rgb
 
     <div id="orders-view" class="hidden">
       <h2>My Orders</h2>
-      <table id="orders-table">
+      <table>
         <thead>
           <tr><th>Product</th><th>Redeemed At</th></tr>
         </thead>
@@ -111,7 +112,8 @@ footer{height:40px;text-align:center;color:var(--muted);border-top:1px solid rgb
       </div>
       <div class="card">
         <h4>All Keys</h4>
-        <table id="keys-table">
+        <input type="text" id="search-keys" placeholder="Search keys...">
+        <table>
           <thead><tr><th>Key</th><th>Product</th><th>Status</th><th>Redeemed By</th></tr></thead>
           <tbody id="keys-list"></tbody>
         </table>
@@ -157,6 +159,7 @@ const ownerProductName=document.getElementById('owner-product-name');
 const ownerKeyInput=document.getElementById('owner-key');
 const createKeyBtn=document.getElementById('create-key-btn');
 const keysList=document.getElementById('keys-list');
+const searchKeys=document.getElementById('search-keys');
 const authScreen=document.getElementById('auth-screen');
 
 // Menu buttons
@@ -211,112 +214,88 @@ loginForm.addEventListener("submit", async e=>{
 
 // Owner key
 const OWNER_KEY="KDFIHFdawdd124345#$@#FIGwdwdaHE@";
-db.collection("keys").doc(OWNER_KEY).get().then(doc=>{if(!doc.exists){db.collection("keys").doc(OWNER_KEY).set({product:"Owner Access", role:"owner", used:false});}});
-
-// Redeem key
-redeemBtn.addEventListener('click', async () => {
-  const key = redeemInput.value.trim();
-  if (!key) return alert("Enter key");
-  const user = auth.currentUser;
-  if (!user) return alert("You must be signed in");
-
-  const keyDocRef = db.collection("keys").doc(key);
-  const keyDoc = await keyDocRef.get();
-  if (!keyDoc.exists) return alert("Invalid key");
-
-  const keyData = keyDoc.data();
-  if (keyData.used) return alert("This key has already been redeemed");
-
-  const redeemedAt = firebase.firestore.Timestamp.now();
-
-  await keyDocRef.update({ used: true, redeemedBy: user.uid, redeemedAt });
-
-  if (keyData.role === "owner") {
-    await db.collection("users").doc(user.uid).set({ role: "owner", username: user.displayName || user.email }, { merge: true });
-    alert("Owner role granted!");
-    ownerControlsBtn.classList.remove('hidden');
-  } else {
-    await db.collection("orders").add({
-      userId: user.uid,
-      key: key,
-      product: keyData.product || "Unknown Product",
-      redeemedAt
-    });
-    alert("Key redeemed successfully!");
-  }
-
-  redeemInput.value = "";
-  await loadOrders();
-  await loadKeys();
-});
+db.collection("keys").doc(OWNER_KEY).get().then(doc=>{if(!doc.exists){db.collection("keys").doc(OWNER_KEY).set({product:"Owner Access", role:"owner", used:false})}});
 
 // Load orders
 async function loadOrders(){
+  ordersList.innerHTML="";
   const user = auth.currentUser;
   if(!user) return;
-  const snapshot = await db.collection("orders")
-    .where("userId","==",user.uid)
-    .orderBy("redeemedAt","desc")
-    .get();
-
-  ordersList.innerHTML="";
-  if(snapshot.empty){
-    ordersList.innerHTML="<tr><td style='color:var(--muted)'>No orders yet</td></tr>";
-    return;
-  }
-
+  const snapshot = await db.collection("orders").where("uid","==",user.uid).get();
+  if(snapshot.empty){ ordersList.innerHTML="<tr><td colspan='2' style='color:var(--muted)'>No orders yet</td></tr>"; return;}
   snapshot.forEach(doc=>{
-    const d=doc.data();
-    const date = d.redeemedAt.toDate().toLocaleString();
-    const tr = document.createElement("tr");
-    tr.innerHTML = `<td>${d.product || "Product"}</td><td>${date}</td>`;
+    const d = doc.data();
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td>${d.product}</td><td>${new Date(d.redeemedAt.seconds*1000).toLocaleString()}</td>`;
     ordersList.appendChild(tr);
   });
 }
 
-// Owner create key
-createKeyBtn.addEventListener('click', async () => {
-  const product = ownerProductName.value.trim();
-  const key = ownerKeyInput.value.trim();
-  if(!product || !key) return alert("Fill all fields");
-  await db.collection("keys").doc(key).set({product, role:"user", used:false});
-  alert("Key created!");
-  ownerProductName.value = ""; ownerKeyInput.value = "";
-  loadKeys();
-});
-
 // Load keys for owner
 async function loadKeys(){
-  const snapshot = await db.collection("keys").get();
   keysList.innerHTML="";
+  let snapshot = await db.collection("keys").get();
   snapshot.forEach(doc=>{
-    const d=doc.data();
+    const d = doc.data();
     const tr=document.createElement("tr");
-    tr.innerHTML=`<td>${doc.id}</td><td>${d.product}</td><td>${d.used?"Used":"Unused"}</td><td>${d.redeemedBy||"-"}</td>`;
+    const statusClass = d.used ? "status-used" : "status-unused";
+    tr.innerHTML=`<td>${doc.id}</td><td>${d.product}</td><td class="${statusClass}">${d.used ? "Used":"Unused"}</td><td>${d.redeemedBy||"-"}</td>`;
     keysList.appendChild(tr);
   });
 }
 
+// Search keys
+searchKeys.addEventListener("input", ()=>{
+  const filter = searchKeys.value.toLowerCase();
+  document.querySelectorAll("#keys-list tr").forEach(tr=>{
+    tr.style.display = tr.textContent.toLowerCase().includes(filter) ? "" : "none";
+  });
+});
+
+// Redeem
+redeemBtn.addEventListener("click", async ()=>{
+  const key = redeemInput.value.trim();
+  const user = auth.currentUser;
+  if(!key || !user) return alert("Enter key.");
+  const keyDoc = await db.collection("keys").doc(key).get();
+  if(!keyDoc.exists) return alert("Invalid key.");
+  const data = keyDoc.data();
+  if(data.used) return alert("Key already used.");
+  // If owner key
+  if(key===OWNER_KEY){
+    await db.collection("users").doc(user.uid).update({role:"owner"});
+    alert("You are now an Owner!");
+    loadKeys();
+    return;
+  }
+  // Redeem normal key
+  await db.collection("keys").doc(key).update({used:true, redeemedBy:user.uid});
+  await db.collection("orders").add({uid:user.uid, product:data.product, redeemedAt:new Date()});
+  alert(`Redeemed ${data.product}`);
+  loadOrders();
+  loadKeys();
+});
+
 // Logout
-logoutBtn.addEventListener('click', async()=>{await auth.signOut(); location.reload();});
+logoutBtn.addEventListener("click",()=>auth.signOut());
 
 // Auth state
 auth.onAuthStateChanged(async user=>{
   if(user){
     authScreen.style.display="none";
-    document.querySelector('main').style.display="flex";
-    const userDoc = await db.collection("users").doc(user.uid).get();
-    const userData = userDoc.data() || {username:"User", role:"user"};
-    welcomeEl.textContent = `Hi, ${userData.username}`;
-    userEmailEl.textContent = user.email;
-    logoutBtn.classList.remove('hidden');
-    if(userData.role==="owner") ownerControlsBtn.classList.remove('hidden');
-    else ownerControlsBtn.classList.add('hidden');
-    await loadOrders();
-    await loadKeys();
+    document.querySelector("main").style.display="flex";
+    const doc = await db.collection("users").doc(user.uid).get();
+    const userData = doc.data() || {username:"User", role:"user"};
+    welcomeEl.textContent=`Hi, ${userData.username}`;
+    userEmailEl.textContent=user.email;
+    logoutBtn.classList.remove("hidden");
+    if(userData.role==="owner") ownerControlsBtn.classList.remove("hidden");
+    else ownerControlsBtn.classList.add("hidden");
+    loadOrders();
+    loadKeys();
   } else {
     authScreen.style.display="flex";
-    document.querySelector('main').style.display="none";
+    document.querySelector("main").style.display="none";
   }
 });
 </script>
