@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Konvy Accounts — Owner Panel</title>
 <style>
-:root{ --bg:#000; --fg:#fff; --muted:#bdbdbd; --accent:#fff; --green:#0f0; --red:#f33; --orange:#f90;}
+:root{ --bg:#000; --fg:#fff; --muted:#bdbdbd; --accent:#fff; --green:#0f0; --red:#f33; --orange:#f90; }
 *{box-sizing:border-box}
 html,body{height:100%;margin:0;font-family:Inter,system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial;color:var(--fg);background:var(--bg);}
 body{display:flex;flex-direction:column;}
@@ -18,8 +18,8 @@ main{flex:1;display:flex;overflow:hidden;}
 .content{flex:1;padding:24px;overflow-y:auto;}
 h2{margin-top:0;color:var(--accent);}
 .card{background:rgba(255,255,255,0.02);padding:20px;border-radius:12px;margin-bottom:12px;}
-input,button{font-size:14px;}
-input[type=text],input[type=password]{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:transparent;color:var(--fg);}
+input,button,textarea{font-size:14px;}
+input[type=text],input[type=password],textarea{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:transparent;color:var(--fg);}
 button{padding:10px;border:none;border-radius:8px;background:var(--fg);color:var(--bg);cursor:pointer;font-weight:700;}
 table{width:100%;border-collapse:collapse;margin-top:12px;}
 th,td{padding:8px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.2);}
@@ -31,11 +31,9 @@ th,td{padding:8px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.2);
 .switcher button.active{background:var(--accent);color:var(--bg);}
 .status-used{color:var(--red);font-weight:700;}
 .status-unused{color:var(--green);font-weight:700;}
+.delete-btn{background:red;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;cursor:pointer;}
 .status-pending{color:var(--orange);font-weight:700;}
 .status-complete{color:var(--green);font-weight:700;}
-.delete-btn{background:red;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;cursor:pointer;}
-textarea{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:transparent;color:var(--fg);margin-bottom:8px;}
-.message-card{border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:8px;margin-bottom:6px;}
 </style>
 </head>
 <body>
@@ -81,7 +79,7 @@ textarea{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255
     <button id="menu-dashboard" class="active">Dashboard</button>
     <button id="menu-redeem">Redeem Key</button>
     <button id="menu-orders">My Orders</button>
-    <button id="menu-tickets">Tickets</button>
+    <button id="menu-tickets" class="hidden">Tickets</button>
     <button id="menu-owner" class="hidden">Owner Panel</button>
   </div>
   <div class="content" id="main-content">
@@ -102,7 +100,7 @@ textarea{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255
       <h2>My Orders</h2>
       <table>
         <thead>
-          <tr><th>Product</th><th>Key</th><th>Status</th><th>Redeemed At</th></tr>
+          <tr><th>Product</th><th>Redeemed At</th></tr>
         </thead>
         <tbody id="orders-list"></tbody>
       </table>
@@ -110,12 +108,19 @@ textarea{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255
 
     <div id="tickets-view" class="hidden">
       <h2>Tickets</h2>
-      <div id="ticket-container" class="card">
+      <div id="ticket-section" class="card">
         <button id="open-ticket-btn">Open Ticket</button>
-        <div id="ticket-messages" style="margin-top:12px;"></div>
-        <textarea id="ticket-input" placeholder="Type message..." class="hidden"></textarea>
-        <button id="ticket-send-btn" class="hidden">Send</button>
-        <button id="close-ticket-btn" class="hidden">Close Ticket</button>
+        <div id="ticket-form" style="display:none; margin-top:12px;">
+          <label>Redeemed Key:</label>
+          <input type="text" id="ticket-key" placeholder="Enter your redeemed key">
+          <label>Message:</label>
+          <textarea id="ticket-message" placeholder="Describe your issue..." rows="3" style="width:100%;"></textarea>
+          <button id="send-ticket-btn">Send</button>
+        </div>
+      </div>
+      <div id="ticket-list" class="card" style="margin-top:12px;">
+        <h4>My Tickets</h4>
+        <div id="tickets-container"></div>
       </div>
     </div>
 
@@ -173,37 +178,39 @@ const redeemInput=document.getElementById('redeem-key-input');
 const redeemBtn=document.getElementById('redeem-key-btn');
 const ordersList=document.getElementById('orders-list');
 const ownerControlsBtn=document.getElementById('menu-owner');
+const menuTicketsBtn=document.getElementById('menu-tickets');
 const ownerProductName=document.getElementById('owner-product-name');
 const ownerKeyInput=document.getElementById('owner-key');
 const createKeyBtn=document.getElementById('create-key-btn');
 const keysList=document.getElementById('keys-list');
 const searchKeys=document.getElementById('search-keys');
 const authScreen=document.getElementById('auth-screen');
-const ticketContainer=document.getElementById("ticket-container");
-const ticketMessages=document.getElementById("ticket-messages");
-const ticketInput=document.getElementById("ticket-input");
-const ticketSendBtn=document.getElementById("ticket-send-btn");
 const openTicketBtn=document.getElementById("open-ticket-btn");
-const closeTicketBtn=document.getElementById("close-ticket-btn");
+const ticketForm=document.getElementById("ticket-form");
+const ticketKeyInput=document.getElementById("ticket-key");
+const ticketMessageInput=document.getElementById("ticket-message");
+const sendTicketBtn=document.getElementById("send-ticket-btn");
+const ticketsContainer=document.getElementById("tickets-container");
 
 // Menu buttons
 document.getElementById('menu-dashboard').addEventListener('click',()=>switchView('dashboard'));
 document.getElementById('menu-redeem').addEventListener('click',()=>switchView('redeem'));
 document.getElementById('menu-orders').addEventListener('click',()=>switchView('orders'));
-document.getElementById('menu-tickets').addEventListener('click',()=>switchView('tickets'));
 document.getElementById('menu-owner').addEventListener('click',()=>switchView('owner'));
+menuTicketsBtn.addEventListener('click',()=>switchView("tickets"));
+
 function switchView(view){
   dashboardView.classList.add('hidden');
   redeemView.classList.add('hidden');
   ordersView.classList.add('hidden');
-  ticketsView.classList.add('hidden');
   ownerView.classList.add('hidden');
+  ticketsView.classList.add("hidden");
   document.querySelectorAll('.sidebar button').forEach(b=>b.classList.remove('active'));
   if(view==='dashboard'){dashboardView.classList.remove('hidden'); document.getElementById('menu-dashboard').classList.add('active');}
   if(view==='redeem'){redeemView.classList.remove('hidden'); document.getElementById('menu-redeem').classList.add('active');}
   if(view==='orders'){ordersView.classList.remove('hidden'); document.getElementById('menu-orders').classList.add('active');}
-  if(view==='tickets'){ticketsView.classList.remove('hidden'); document.getElementById('menu-tickets').classList.add('active');}
   if(view==='owner'){ownerView.classList.remove('hidden'); document.getElementById('menu-owner').classList.add('active');}
+  if(view==='tickets'){ticketsView.classList.remove('hidden'); menuTicketsBtn.classList.add("active");}
 }
 
 // AUTH SWITCH
@@ -246,12 +253,11 @@ async function loadOrders(){
   const user = auth.currentUser;
   if(!user) return;
   const snapshot = await db.collection("orders").where("uid","==",user.uid).get();
-  if(snapshot.empty){ ordersList.innerHTML="<tr><td colspan='4' style='color:var(--muted)'>No orders yet</td></tr>"; return;}
+  if(snapshot.empty){ ordersList.innerHTML="<tr><td colspan='2' style='color:var(--muted)'>No orders yet</td></tr>"; return;}
   snapshot.forEach(doc=>{
     const d = doc.data();
     const tr=document.createElement("tr");
-    const statusClass = d.status==="Complete"?"status-complete":"status-pending";
-    tr.innerHTML=`<td>${d.product}</td><td>${d.key}</td><td class="${statusClass}">${d.status||"Pending"}</td><td>${new Date(d.redeemedAt.seconds*1000).toLocaleString()}</td>`;
+    tr.innerHTML=`<td>${d.product}</td><td>${new Date(d.redeemedAt.seconds*1000).toLocaleString()}</td>`;
     ordersList.appendChild(tr);
   });
 }
@@ -273,6 +279,8 @@ async function loadKeys(){
     `;
     keysList.appendChild(tr);
   });
+
+  // Delete button handler
   document.querySelectorAll(".delete-btn").forEach(btn=>{
     btn.addEventListener("click", async ()=>{
       const key = btn.dataset.key;
@@ -308,7 +316,7 @@ redeemBtn.addEventListener("click", async ()=>{
     return;
   }
   await db.collection("keys").doc(key).update({used:true, redeemedBy:user.uid});
-  await db.collection("orders").add({uid:user.uid, product:data.product, key:key, redeemedAt:new Date(), status:"Pending"});
+  await db.collection("orders").add({uid:user.uid, key:key, product:data.product, status:"Pending", redeemedAt:new Date()});
   alert(`Redeemed ${data.product}`);
   loadOrders();
   loadKeys();
@@ -321,7 +329,7 @@ createKeyBtn.addEventListener("click", async ()=>{
   if(!product || !key) return alert("Enter product and key");
   const exists = await db.collection("keys").doc(key).get();
   if(exists.exists) return alert("Key already exists");
-  await db.collection("keys").doc(key).set({product, used:false});
+  await db.collection("keys"].doc(key).set({product, used:false});
   ownerProductName.value="";
   ownerKeyInput.value="";
   loadKeys();
@@ -331,26 +339,100 @@ createKeyBtn.addEventListener("click", async ()=>{
 // Logout
 logoutBtn.addEventListener("click",()=>auth.signOut());
 
-// Force login and auth state
+// Customer Ticket System
+openTicketBtn.addEventListener("click", async ()=>{
+  const user = auth.currentUser;
+  if(!user) return alert("Login first.");
+  const activeTicket = await db.collection("tickets").where("uid","==",user.uid).where("status","==","Open").get();
+  if(!activeTicket.empty) return alert("You already have an active ticket.");
+  ticketForm.style.display="block";
+});
+
+sendTicketBtn.addEventListener("click", async ()=>{
+  const user = auth.currentUser;
+  const key = ticketKeyInput.value.trim();
+  const message = ticketMessageInput.value.trim();
+  if(!key || !message) return alert("Enter key and message.");
+  const keyDoc = await db.collection("keys").doc(key).get();
+  if(!keyDoc.exists || keyDoc.data().redeemedBy !== user.uid) return alert("Invalid key or not redeemed by you.");
+  const orderSnap = await db.collection("orders").where("uid","==",user.uid).where("key","==",key).get();
+  if(orderSnap.empty) return alert("Order not found for this key.");
+  const order = orderSnap.docs[0].data();
+  await db.collection("tickets").add({
+    uid: user.uid,
+    key,
+    product: order.product,
+    orderStatus: order.status,
+    messages: [{from:"user", text:message, timestamp: new Date()}],
+    status: "Open",
+    createdAt: new Date()
+  });
+  ticketForm.style.display="none";
+  ticketKeyInput.value="";
+  ticketMessageInput.value="";
+  alert("Ticket created!");
+  loadTickets();
+});
+
+async function loadTickets(){
+  const user = auth.currentUser;
+  ticketsContainer.innerHTML="";
+  if(!user) return;
+  const snapshot = await db.collection("tickets").where("uid","==",user.uid).orderBy("createdAt","desc").get();
+  if(snapshot.empty){
+    ticketsContainer.innerHTML="<div style='color:var(--muted)'>No tickets yet.</div>";
+    return;
+  }
+  snapshot.forEach(doc=>{
+    const t = doc.data();
+    const div = document.createElement("div");
+    div.classList.add("card");
+    div.innerHTML=`
+      <strong>Product:</strong> ${t.product}<br>
+      <strong>Key:</strong> ${t.key}<br>
+      <strong>Order Status:</strong> ${t.orderStatus}<br>
+      <strong>Ticket Status:</strong> ${t.status}<br>
+      <div><strong>Messages:</strong></div>
+      <div>${t.messages.map(m=>`<div><strong>${m.from}:</strong> ${m.text}</div>`).join("")}</div>
+      ${t.status==="Open"?`<button class="close-ticket-btn" data-id="${doc.id}">Close Ticket</button>`:""}
+    `;
+    ticketsContainer.appendChild(div);
+  });
+  document.querySelectorAll(".close-ticket-btn").forEach(btn=>{
+    btn.addEventListener("click", async ()=>{
+      const id = btn.dataset.id;
+      if(confirm("Close this ticket?")){
+        await db.collection("tickets").doc(id).update({status:"Closed"});
+        loadTickets();
+      }
+    });
+  });
+}
+
+// Auth state
 auth.onAuthStateChanged(async user=>{
   if(user){
     authScreen.style.display="none";
-    document.querySelector("main").style.display="flex";
-    document.querySelector("header").style.display="flex";
-    logoutBtn.classList.remove("hidden");
+    welcomeEl.textContent=`Hi, ${user.displayName||"User"}`;
     userEmailEl.textContent=user.email;
+    logoutBtn.classList.remove("hidden");
     const doc = await db.collection("users").doc(user.uid).get();
     const userData = doc.data() || {username:"User", role:"user"};
     if(userData.role==="owner") ownerControlsBtn.classList.remove("hidden");
     else ownerControlsBtn.classList.add("hidden");
+    if(userData.role!=="owner") menuTicketsBtn.classList.remove("hidden");
+    else menuTicketsBtn.classList.add("hidden");
     loadOrders();
     loadKeys();
+    loadTickets();
   } else {
     authScreen.style.display="flex";
-    document.querySelector("main").style.display="none";
-    document.querySelector("header").style.display="none";
+    dashboardView.classList.add("hidden");
+    redeemView.classList.add("hidden");
+    ordersView.classList.add("hidden");
+    ownerView.classList.add("hidden");
+    ticketsView.classList.add("hidden");
     logoutBtn.classList.add("hidden");
-    userEmailEl.textContent="Not signed in";
   }
 });
 </script>
