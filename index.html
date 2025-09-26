@@ -3,154 +3,95 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Konvy Accounts — Black & White</title>
+<title>Konvy Accounts — Full Screen Dashboard</title>
 <style>
-:root{ --bg:#000; --fg:#fff; --muted: #bdbdbd; }
+:root{ --bg:#000; --fg:#fff; --muted:#bdbdbd; --accent:#fff; }
 *{box-sizing:border-box}
-html,body{height:100%;}
-body{
-  margin:0; background:var(--bg); color:var(--fg); font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
-  display:grid; place-items:center; padding:24px;
-}
-.container{width:100%;max-width:920px;background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02)); border:1px solid rgba(255,255,255,0.06); padding:32px; border-radius:14px; box-shadow:0 10px 30px rgba(0,0,0,0.6)}
-header{display:flex;align-items:center;gap:16px;margin-bottom:18px}
-.logo{width:56px;height:56px;border-radius:12px;background:linear-gradient(135deg,#fff,#ccc);display:flex;align-items:center;justify-content:center;color:#000;font-weight:700; font-size:20px;box-shadow:0 8px 30px rgba(255,255,255,0.06) inset}
-h1{margin:0;font-size:20px}
-p.lead{margin:0;color:var(--muted);font-size:13px}
-.grid{display:grid;grid-template-columns:1fr 420px;gap:28px}
-@media (max-width:880px){.grid{grid-template-columns:1fr}}
-.left{display:flex;flex-direction:column;gap:12px}
-.card{background:transparent;padding:18px;border-radius:10px;border:1px solid rgba(255,255,255,0.03)}
-.form{display:flex;flex-direction:column;gap:10px}
-label{font-size:13px;color:var(--muted)}
-input[type=text], input[type=password], input[type=email]{background:transparent;border:1px solid rgba(255,255,255,0.08);padding:10px;border-radius:8px;color:var(--fg);font-size:15px}
-button{background:var(--fg); color:var(--bg); border:none;padding:10px 12px;border-radius:10px;font-weight:700;cursor:pointer}
-.muted{color:var(--muted);font-size:13px}
-.switcher{display:flex;gap:8px;margin-bottom:8px}
-.switcher button{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--fg);padding:8px 10px;border-radius:8px;font-weight:600}
-.switcher button.active{background:rgba(255,255,255,0.92);color:var(--bg)}
-.center{display:flex;align-items:center;justify-content:center;height:100%}
-footer{margin-top:18px;color:var(--muted);font-size:13px;text-align:center}
-.btn-ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);padding:8px 10px;border-radius:8px;color:var(--fg);cursor:pointer}
+html,body{height:100%;margin:0;font-family:Inter,system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial;color:var(--fg);background:var(--bg);}
+body{display:flex;flex-direction:column;}
+header{height:60px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;border-bottom:1px solid rgba(255,255,255,0.1);}
+.logo{font-size:24px;font-weight:700;}
+main{flex:1;display:flex;overflow:hidden;}
+.sidebar{width:250px;background:rgba(255,255,255,0.05);padding:20px;display:flex;flex-direction:column;gap:12px;}
+.sidebar button{background:transparent;border:1px solid rgba(255,255,255,0.1);padding:10px;border-radius:8px;color:var(--fg);cursor:pointer;text-align:left;font-weight:600;}
+.sidebar button.active{background:var(--accent);color:var(--bg);}
+.content{flex:1;padding:24px;overflow-y:auto;}
+h2{margin-top:0;color:var(--accent);}
+.card{background:rgba(255,255,255,0.02);padding:20px;border-radius:12px;margin-bottom:12px;}
+input,button{font-size:14px;}
+input[type=text]{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:transparent;color:var(--fg);}
+button{padding:10px;border:none;border-radius:8px;background:var(--fg);color:var(--bg);cursor:pointer;font-weight:700;}
+table{width:100%;border-collapse:collapse;margin-top:12px;}
+th,td{padding:8px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.2);}
 .hidden{display:none;}
-#owner-controls{margin-top:12px;}
-#owner-controls input{width:100%;margin-bottom:6px;}
-#orders-table, #keys-table{width:100%; border-collapse:collapse; margin-top:12px;}
-#orders-table th, #orders-table td, #keys-table th, #keys-table td{border-bottom:1px solid rgba(255,255,255,0.2); padding:6px; text-align:left;}
+footer{height:40px;text-align:center;color:var(--muted);border-top:1px solid rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:center;}
 </style>
 </head>
 <body>
-<div class="container">
 <header>
-  <div class="logo">K</div>
+  <div class="logo">Konvy</div>
   <div>
-    <h1>Konvy AccountsXD</h1>
-    <p class="lead">Redeem keys, view order history, manage products if owner.</p>
+    <span id="welcome">Welcome</span> | <span id="user-email">Not signed in</span>
+    <button id="logout-btn" class="hidden">Logout</button>
   </div>
 </header>
+<main>
+  <div class="sidebar">
+    <button id="menu-dashboard" class="active">Dashboard</button>
+    <button id="menu-redeem">Redeem Key</button>
+    <button id="menu-orders">My Orders</button>
+    <button id="menu-owner" class="hidden">Owner Panel</button>
+  </div>
+  <div class="content" id="main-content">
+    <div id="dashboard-view">
+      <h2>Dashboard</h2>
+      <div class="card">Welcome to your account dashboard.</div>
+    </div>
 
-<div class="grid">
-  <div class="left">
-    <div class="card">
-      <div class="switcher">
-        <button id="btn-login" class="active">Login</button>
-        <button id="btn-signup">Sign up</button>
-      </div>
-
-      <div id="forms">
-        <!-- Login form -->
-        <form id="login-form" class="form">
-          <label for="login-email">Email</label>
-          <input id="login-email" type="email" required placeholder="you@example.com">
-          <label for="login-password">Password</label>
-          <input id="login-password" type="password" required placeholder="password">
-          <button type="submit">Sign in</button>
-        </form>
-
-        <!-- Signup form -->
-        <form id="signup-form" class="form" style="display:none">
-          <label for="signup-username">Username</label>
-          <input id="signup-username" type="text" required placeholder="username">
-          <label for="signup-email">Email</label>
-          <input id="signup-email" type="email" required placeholder="you@example.com">
-          <label for="signup-password">Password</label>
-          <input id="signup-password" type="password" required placeholder="password">
-          <button type="submit">Create account</button>
-        </form>
+    <div id="redeem-view" class="hidden">
+      <h2>Redeem Key</h2>
+      <div class="card">
+        <input type="text" id="redeem-key-input" placeholder="Enter product key">
+        <button id="redeem-key-btn">Redeem</button>
       </div>
     </div>
-  </div>
 
-  <div>
-    <div class="card dashboard" id="main-area">
-      <div class="nav">
-        <div>
-          <strong id="welcome">Welcome</strong>
-          <div class="muted" id="user-email">Not signed in</div>
-        </div>
-        <div>
-          <button id="logout-btn" class="btn-ghost hidden">Logout</button>
-        </div>
-      </div>
+    <div id="orders-view" class="hidden">
+      <h2>My Orders</h2>
+      <table id="orders-table">
+        <thead>
+          <tr><th>Redeemed At</th></tr>
+        </thead>
+        <tbody id="orders-list"></tbody>
+      </table>
+    </div>
 
-      <div id="dash-content" style="min-height:220px;display:flex;flex-direction:column;">
-        <div class="center muted">Blank dashboard — nothing here yet.</div>
-      </div>
-
-      <!-- Redeem key input -->
-      <div id="redeem-section" class="hidden" style="margin-top:12px;">
-        <input type="text" id="redeem-key-input" placeholder="Enter product key">
-        <button id="redeem-key-btn">Redeem Key</button>
-        
-        <!-- Order History Table -->
-        <h4>Your Orders</h4>
-        <table id="orders-table">
-          <thead>
-            <tr>
-              <th>Product</th>
-              <th>Redeemed At</th>
-            </tr>
-          </thead>
-          <tbody id="orders-list"></tbody>
-        </table>
-      </div>
-
-      <!-- Owner controls -->
-      <div id="owner-controls" class="hidden">
-        <h4>Owner Controls: Create Key</h4>
+    <div id="owner-view" class="hidden">
+      <h2>Owner Panel</h2>
+      <div class="card">
+        <h4>Create Key</h4>
         <input type="text" id="owner-product-name" placeholder="Product Name">
         <input type="text" id="owner-key" placeholder="Key">
         <button id="create-key-btn">Create Key</button>
-
-        <!-- Owner Keys Table -->
+      </div>
+      <div class="card">
         <h4>All Keys</h4>
         <table id="keys-table">
-          <thead>
-            <tr>
-              <th>Key</th>
-              <th>Product</th>
-              <th>Status</th>
-              <th>Redeemed By</th>
-            </tr>
-          </thead>
+          <thead><tr><th>Key</th><th>Product</th><th>Status</th><th>Redeemed By</th></tr></thead>
           <tbody id="keys-list"></tbody>
         </table>
       </div>
     </div>
   </div>
-</div>
+</main>
+<footer>Built with Firebase — works across devices.</footer>
 
-<footer>
-  Built with Firebase Authentication & Firestore — works across devices.
-</footer>
-</div>
-
-<!-- Firebase SDKs -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
 <script>
+// Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyD2M35gv68ILULRqlRVlO5E4oLCXbj1RaM",
   authDomain: "konvy-57910.firebaseapp.com",
@@ -164,186 +105,137 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-// UI elements
-const btnLogin = document.getElementById('btn-login');
-const btnSignup = document.getElementById('btn-signup');
-const loginForm = document.getElementById('login-form');
-const signupForm = document.getElementById('signup-form');
-const logoutBtn = document.getElementById('logout-btn');
-const welcomeEl = document.getElementById('welcome');
-const userEmailEl = document.getElementById('user-email');
-const dashContent = document.getElementById('dash-content');
-const redeemSection = document.getElementById('redeem-section');
-const redeemInput = document.getElementById('redeem-key-input');
-const redeemBtn = document.getElementById('redeem-key-btn');
-const ordersList = document.getElementById('orders-list');
-const ownerControls = document.getElementById('owner-controls');
-const ownerProductName = document.getElementById('owner-product-name');
-const ownerKeyInput = document.getElementById('owner-key');
-const createKeyBtn = document.getElementById('create-key-btn');
-const keysList = document.getElementById('keys-list');
+// Elements
+const welcomeEl=document.getElementById('welcome');
+const userEmailEl=document.getElementById('user-email');
+const logoutBtn=document.getElementById('logout-btn');
+const dashboardView=document.getElementById('dashboard-view');
+const redeemView=document.getElementById('redeem-view');
+const ordersView=document.getElementById('orders-view');
+const ownerView=document.getElementById('owner-view');
+const redeemInput=document.getElementById('redeem-key-input');
+const redeemBtn=document.getElementById('redeem-key-btn');
+const ordersList=document.getElementById('orders-list');
+const ownerControlsBtn=document.getElementById('menu-owner');
+const ownerProductName=document.getElementById('owner-product-name');
+const ownerKeyInput=document.getElementById('owner-key');
+const createKeyBtn=document.getElementById('create-key-btn');
+const keysList=document.getElementById('keys-list');
 
-// Switch tabs
-btnLogin.addEventListener('click', ()=>{ btnLogin.classList.add('active'); btnSignup.classList.remove('active'); loginForm.style.display='block'; signupForm.style.display='none'; });
-btnSignup.addEventListener('click', ()=>{ btnSignup.classList.add('active'); btnLogin.classList.remove('active'); loginForm.style.display='none'; signupForm.style.display='block'; });
+// Menu buttons
+document.getElementById('menu-dashboard').addEventListener('click',()=>switchView('dashboard'));
+document.getElementById('menu-redeem').addEventListener('click',()=>switchView('redeem'));
+document.getElementById('menu-orders').addEventListener('click',()=>switchView('orders'));
+document.getElementById('menu-owner').addEventListener('click',()=>switchView('owner'));
 
-// Owner special key
-const OWNER_KEY = "KDFIHFdawdd124345#$@#FIGwdwdaHE@";
-db.collection("keys").doc(OWNER_KEY).get().then(doc=>{
-  if(!doc.exists){
-    db.collection("keys").doc(OWNER_KEY).set({product:"Owner Access", role:"owner", used:false});
-  }
-});
-
-// Signup
-signupForm.addEventListener('submit', async e=>{
-  e.preventDefault();
-  const username = document.getElementById('signup-username').value.trim();
-  const email = document.getElementById('signup-email').value.trim();
-  const password = document.getElementById('signup-password').value;
-
-  try{
-    const userCredential = await auth.createUserWithEmailAndPassword(email,password);
-    await db.collection("users").doc(userCredential.user.uid).set({username, role:"user"});
-    alert("Signup successful! Please login.");
-    loginForm.style.display='block';
-    signupForm.style.display='none';
-    btnLogin.classList.add('active');
-    btnSignup.classList.remove('active');
-  } catch(err){ alert(err.message); }
-});
-
-// Login
-loginForm.addEventListener('submit', async e=>{
-  e.preventDefault();
-  const email = document.getElementById('login-email').value.trim();
-  const password = document.getElementById('login-password').value;
-  try{
-    const userCredential = await auth.signInWithEmailAndPassword(email,password);
-    const userDoc = await db.collection("users").doc(userCredential.user.uid).get();
-    const userData = userDoc.data();
-    renderSignedIn(userData.username,email,userData.role);
-  } catch(err){ alert(err.message); }
-});
-
-// Logout
-logoutBtn.addEventListener('click', async ()=>{
-  await auth.signOut();
-  renderSignedOut();
-});
-
-// Render functions
-function renderSignedIn(username,email,role){
-  welcomeEl.textContent = `Hi, ${username}`;
-  userEmailEl.textContent = email;
-  logoutBtn.classList.remove('hidden');
-  dashContent.innerHTML = '<div class="center muted">Blank dashboard — nothing here yet.</div>';
-  document.querySelector('.card .switcher').style.display='none';
-  loginForm.style.display='none';
-  signupForm.style.display='none';
-  redeemSection.classList.remove('hidden');
-
-  if(role==="owner") ownerControls.classList.remove('hidden');
-  else ownerControls.classList.add('hidden');
-
-  loadOrders();
-  if(role==="owner") loadKeys();
+function switchView(view){
+  dashboardView.classList.add('hidden');
+  redeemView.classList.add('hidden');
+  ordersView.classList.add('hidden');
+  ownerView.classList.add('hidden');
+  document.querySelectorAll('.sidebar button').forEach(b=>b.classList.remove('active'));
+  if(view==='dashboard'){dashboardView.classList.remove('hidden'); document.getElementById('menu-dashboard').classList.add('active');}
+  if(view==='redeem'){redeemView.classList.remove('hidden'); document.getElementById('menu-redeem').classList.add('active');}
+  if(view==='orders'){ordersView.classList.remove('hidden'); document.getElementById('menu-orders').classList.add('active');}
+  if(view==='owner'){ownerView.classList.remove('hidden'); document.getElementById('menu-owner').classList.add('active');}
 }
 
-function renderSignedOut(){
-  welcomeEl.textContent = 'Welcome';
-  userEmailEl.textContent = 'Not signed in';
-  logoutBtn.classList.add('hidden');
-  document.querySelector('.card .switcher').style.display='flex';
-  loginForm.style.display='block';
-  signupForm.style.display='none';
-  dashContent.innerHTML = '<div class="center muted">Blank dashboard — nothing here yet.</div>';
-  redeemSection.classList.add('hidden');
-  ownerControls.classList.add('hidden');
-  ordersList.innerHTML="";
-  keysList.innerHTML="";
-}
+// Owner key
+const OWNER_KEY="KDFIHFdawdd124345#$@#FIGwdwdaHE@";
+db.collection("keys").doc(OWNER_KEY).get().then(doc=>{if(!doc.exists){db.collection("keys").doc(OWNER_KEY).set({product:"Owner Access", role:"owner", used:false});}});
 
 // Redeem key
-redeemBtn.addEventListener('click', async ()=>{
+redeemBtn.addEventListener('click', async () => {
   const key = redeemInput.value.trim();
-  if(!key) return alert("Enter a key");
+  if (!key) return alert("Enter key");
   const user = auth.currentUser;
+  if (!user) return alert("You must be signed in");
 
   const keyDocRef = db.collection("keys").doc(key);
   const keyDoc = await keyDocRef.get();
-  if(!keyDoc.exists) return alert("Invalid key");
+  if (!keyDoc.exists) return alert("Invalid key");
 
   const keyData = keyDoc.data();
-  if(keyData.used) return alert("This key has already been redeemed");
+  if (keyData.used) return alert("This key has already been redeemed");
 
-  await keyDocRef.update({used:true, redeemedBy:user.uid, redeemedAt:firebase.firestore.Timestamp.now()});
-  await db.collection("orders").add({userId:user.uid,key:key,product:keyData.product,redeemedAt:firebase.firestore.Timestamp.now()});
+  // Mark key as used
+  await keyDocRef.update({ used: true, redeemedBy: user.uid, redeemedAt: firebase.firestore.Timestamp.now() });
 
-  if(keyData.role==="owner"){
-    await db.collection("users").doc(user.uid).update({role:"owner"});
+  if (keyData.role === "owner") {
+    // Grant owner role
+    await db.collection("users").doc(user.uid).set({ role: "owner", username: user.displayName || user.email }, { merge: true });
     alert("Owner role granted!");
-    renderSignedIn(user.email,user.email,"owner");
+    ownerControlsBtn.classList.remove('hidden');
   } else {
-    alert(`Redeemed ${keyData.product}`);
+    // Add order to orders collection
+    await db.collection("orders").add({
+      userId: user.uid,
+      key: key,
+      redeemedAt: firebase.firestore.Timestamp.now()
+    });
+    alert("Key redeemed successfully!");
   }
 
-  redeemInput.value="";
-  loadOrders();
-  if(auth.currentUser) loadKeys();
+  redeemInput.value = "";
+  loadOrders(); // refresh orders after redeem
+  loadKeys();   // refresh owner keys view
 });
 
-// Owner create key
-createKeyBtn.addEventListener('click', async ()=>{
-  const product = ownerProductName.value.trim();
-  const key = ownerKeyInput.value.trim();
-  if(!product || !key) return alert("Fill product and key");
-  await db.collection("keys").doc(key).set({product, role:"user", used:false});
-  alert("Key created!");
-  ownerProductName.value="";
-  ownerKeyInput.value="";
-  loadKeys();
-});
-
-// Load customer orders
+// Load orders
 async function loadOrders(){
   const user = auth.currentUser;
+  if(!user) return;
   const snapshot = await db.collection("orders").where("userId","==",user.uid).orderBy("redeemedAt","desc").get();
   ordersList.innerHTML="";
-  if(snapshot.empty){
-    const tr = document.createElement("tr");
-    tr.innerHTML=`<td colspan="2" style="color:var(--muted)">No orders yet</td>`;
-    ordersList.appendChild(tr);
-    return;
-  }
+  if(snapshot.empty){ordersList.innerHTML="<tr><td style='color:var(--muted)'>No orders yet</td></tr>";return;}
   snapshot.forEach(doc=>{
-    const d = doc.data();
-    const date = d.redeemedAt.toDate().toLocaleString();
-    const tr = document.createElement("tr");
-    tr.innerHTML=`<td>${d.product}</td><td>${date}</td>`;
+    const d=doc.data();
+    const date=d.redeemedAt.toDate().toLocaleString();
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td>${date}</td>`;
     ordersList.appendChild(tr);
   });
 }
+
+// Owner create key
+createKeyBtn.addEventListener('click', async () => {
+  const product = ownerProductName.value.trim();
+  const key = ownerKeyInput.value.trim();
+  if(!product || !key) return alert("Fill all fields");
+  await db.collection("keys").doc(key).set({product, role:"user", used:false});
+  alert("Key created!");
+  ownerProductName.value = ""; ownerKeyInput.value = "";
+  loadKeys();
+});
 
 // Load keys for owner
 async function loadKeys(){
   const snapshot = await db.collection("keys").get();
   keysList.innerHTML="";
   snapshot.forEach(doc=>{
-    const d = doc.data();
-    const tr = document.createElement("tr");
+    const d=doc.data();
+    const tr=document.createElement("tr");
     tr.innerHTML=`<td>${doc.id}</td><td>${d.product}</td><td>${d.used?"Used":"Unused"}</td><td>${d.redeemedBy||"-"}</td>`;
     keysList.appendChild(tr);
   });
 }
 
-// Check current user on page load
+// Logout
+logoutBtn.addEventListener('click', async()=>{await auth.signOut(); location.reload();});
+
+// Auth state
 auth.onAuthStateChanged(async user=>{
   if(user){
-    const userDoc = await db.collection("users").doc(user.uid).get();
-    const userData = userDoc.data();
-    renderSignedIn(userData.username,user.email,userData.role);
-  } else renderSignedOut();
+    const userDoc=await db.collection("users").doc(user.uid).get();
+    const userData=userDoc.data();
+    welcomeEl.textContent=`Hi, ${userData?.username || user.email}`;
+    userEmailEl.textContent=user.email;
+    logoutBtn.classList.remove('hidden');
+    if(userData?.role==="owner") ownerControlsBtn.classList.remove('hidden');
+    loadOrders(); loadKeys();
+  }else{
+    welcomeEl.textContent="Welcome"; userEmailEl.textContent="Not signed in"; logoutBtn.classList.add('hidden');
+  }
 });
 </script>
 </body>
