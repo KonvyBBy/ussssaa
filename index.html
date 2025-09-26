@@ -33,9 +33,60 @@ th,td{padding:8px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.2);
 .status-unused{color:var(--green);font-weight:700;}
 .status-pending{color:var(--orange);font-weight:700;}
 .delete-btn{background:red;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;cursor:pointer;}
-.message{margin-bottom:6px;padding:6px 8px;border-radius:6px; background:rgba(255,255,255,0.05);}
-.conversation{border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:10px;margin-bottom:12px;}
-.conversation h4{margin:0 0 6px 0;}
+/* Chat styles */
+#chat-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 8px;
+  overflow: hidden;
+}
+#messages {
+  flex: 1;
+  padding: 10px;
+  overflow-y: auto;
+  background: rgba(255,255,255,0.05);
+}
+.message {
+  margin-bottom: 10px;
+}
+.message.both {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 8px;
+  border-radius: 6px;
+}
+.message.user {
+  background: rgba(0, 255, 0, 0.2);
+  align-self: flex-start;
+}
+.message.owner {
+  background: rgba(255, 0, 0, 0.2);
+  align-self: flex-end;
+}
+#message-input-container {
+  display: flex;
+  padding: 10px;
+  background: rgba(255,255,255,0.05);
+}
+#message-input {
+  flex: 1;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.2);
+  background: transparent;
+  color: var(--fg);
+}
+#send-btn {
+  margin-left: 8px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  background: var(--fg);
+  color: var(--bg);
+  cursor: pointer;
+  font-weight: 700;
+}
 </style>
 </head>
 <body>
@@ -86,11 +137,12 @@ th,td{padding:8px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.2);
     <button id="menu-owner" class="hidden">Owner Panel</button>
   </div>
   <div class="content" id="main-content">
+    <!-- Dashboard -->
     <div id="dashboard-view">
       <h2>Dashboard</h2>
       <div class="card">Welcome to your account dashboard.</div>
     </div>
-
+    <!-- Redeem -->
     <div id="redeem-view" class="hidden">
       <h2>Redeem Key</h2>
       <div class="card">
@@ -98,26 +150,27 @@ th,td{padding:8px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.2);
         <button id="redeem-key-btn">Redeem</button>
       </div>
     </div>
-
+    <!-- Orders -->
     <div id="orders-view" class="hidden">
       <h2>My Orders</h2>
       <table>
-        <thead>
-          <tr><th>Product</th><th>Redeemed At</th><th>Status</th></tr>
-        </thead>
+        <thead><tr><th>Product</th><th>Redeemed At</th><th>Status</th></tr></thead>
         <tbody id="orders-list"></tbody>
       </table>
     </div>
-
-    <div id="inbox-view" class="hidden">
+    <!-- Inbox -->
+    <div id="inbox-view" class="hidden" style="display:flex; flex-direction:column; height:100%;">
       <h2>Inbox</h2>
-      <div id="conversations"></div>
-      <div class="card" style="margin-top:12px;">
-        <textarea id="message-input" placeholder="Type your message..."></textarea>
-        <button id="send-message-btn" style="margin-top:8px;">Send</button>
+      <div id="conversations" style="flex:1; overflow-y:auto; margin-bottom:10px;"></div>
+      <div id="chat-container" style="display:flex; flex-direction:column; height:300px;">
+        <div id="messages"></div>
+        <div id="message-input-container">
+          <input type="text" id="message-input" placeholder="Type your message...">
+          <button id="send-btn">Sendd</button>
+        </div>
       </div>
     </div>
-
+    <!-- Owner Panel -->
     <div id="owner-view" class="hidden">
       <h2>Owner Panel</h2>
       <div class="card">
@@ -136,7 +189,7 @@ th,td{padding:8px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.2);
       </div>
       <div class="card">
         <h4>All Conversations</h4>
-        <div id="owner-conversations"></div>
+        <div id="owner-conversations" style="max-height:300px; overflow-y:auto; border:1px solid rgba(255,255,255,0.2); padding:8px; border-radius:8px;"></div>
       </div>
     </div>
   </div>
@@ -144,6 +197,7 @@ th,td{padding:8px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.2);
 
 <footer>Built with Firebase — works across devices.</footer>
 
+<!-- Firebase SDKs -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
@@ -189,70 +243,61 @@ const searchKeys=document.getElementById('search-keys');
 const conversationsDiv=document.getElementById('conversations');
 const ownerConversationsDiv=document.getElementById('owner-conversations');
 const messageInput=document.getElementById('message-input');
-const sendMessageBtn=document.getElementById('send-message-btn');
+const sendBtn=document.getElementById('send-btn');
 
 const OWNER_KEY="KDFIHFdawdd124345#$@#FIGwdwdaHE@";
 
-// Menu buttons
-document.getElementById('menu-dashboard').addEventListener('click',()=>switchView('dashboard'));
-document.getElementById('menu-redeem').addEventListener('click',()=>switchView('redeem'));
-document.getElementById('menu-orders').addEventListener('click',()=>switchView('orders'));
-document.getElementById('menu-inbox').addEventListener('click',()=>switchView('inbox'));
-document.getElementById('menu-owner').addEventListener('click',()=>switchView('owner'));
-
+// Switch views
 function switchView(view){
-  dashboardView.classList.add('hidden');
-  redeemView.classList.add('hidden');
-  ordersView.classList.add('hidden');
-  inboxView.classList.add('hidden');
-  ownerView.classList.add('hidden');
+  document.querySelectorAll('#main-content > div').forEach(d=>d.classList.add('hidden'));
   document.querySelectorAll('.sidebar button').forEach(b=>b.classList.remove('active'));
-  if(view==='dashboard'){dashboardView.classList.remove('hidden'); document.getElementById('menu-dashboard').classList.add('active');}
-  if(view==='redeem'){redeemView.classList.remove('hidden'); document.getElementById('menu-redeem').classList.add('active');}
-  if(view==='orders'){ordersView.classList.remove('hidden'); document.getElementById('menu-orders').classList.add('active'); loadOrders();}
-  if(view==='inbox'){inboxView.classList.remove('hidden'); document.getElementById('menu-inbox').classList.add('active'); loadConversations();}
-  if(view==='owner'){ownerView.classList.remove('hidden'); document.getElementById('menu-owner').classList.add('active'); loadKeys(); loadOwnerConversations();}
+  if(view==='dashboard'){document.getElementById('dashboard-view').classList.remove('hidden'); document.getElementById('menu-dashboard').classList.add('active');}
+  if(view==='redeem'){document.getElementById('redeem-view').classList.remove('hidden'); document.getElementById('menu-redeem').classList.add('active');}
+  if(view==='orders'){document.getElementById('orders-view').classList.remove('hidden'); document.getElementById('menu-orders').classList.add('active'); loadOrders();}
+  if(view==='inbox'){document.getElementById('inbox-view').classList.remove('hidden'); document.getElementById('menu-inbox').classList.add('active'); loadConversations();}
+  if(view==='owner'){document.getElementById('owner-view').classList.remove('hidden'); document.getElementById('menu-owner').classList.add('active'); loadKeys(); loadOwnerConversations();}
 }
 
-// --- Signup/Login ---
-btnLogin.addEventListener("click", ()=>{btnLogin.classList.add("active"); btnSignup.classList.remove("active"); loginForm.style.display="block"; signupForm.style.display="none";});
-btnSignup.addEventListener("click", ()=>{btnSignup.classList.add("active"); btnLogin.classList.remove("active"); loginForm.style.display="none"; signupForm.style.display="block";});
+// Signup & Login toggle
+document.getElementById("btn-login").onclick=()=>{document.getElementById("login-form").style.display='block'; document.getElementById("signup-form").style.display='none';};
+document.getElementById("btn-signup").onclick=()=>{document.getElementById("signup-form").style.display='block'; document.getElementById("login-form").style.display='none';};
 
-signupForm.addEventListener("submit", async e=>{
+// Signup
+document.getElementById("signup-form").addEventListener("submit", async e=>{
   e.preventDefault();
-  const username = document.getElementById("signup-username").value.trim();
-  const email = document.getElementById("signup-email").value.trim();
-  const password = document.getElementById("signup-password").value;
+  const email=document.getElementById("signup-email").value.trim();
+  const password=document.getElementById("signup-password").value;
+  const username=document.getElementById("signup-username").value.trim();
   try{
-    const userCredential = await auth.createUserWithEmailAndPassword(email,password);
-    await db.collection("users").doc(userCredential.user.uid).set({username, role:"user"});
-    alert("Signup successful!");
-  } catch(err){ alert(err.message); }
+    const cred=await auth.createUserWithEmailAndPassword(email,password);
+    await db.collection("users").doc(cred.user.uid).set({username, role:"user"});
+    alert("Signup successful");
+  }catch(e){ alert(e.message);}
 });
-
-loginForm.addEventListener("submit", async e=>{
+// Login
+document.getElementById("login-form").addEventListener("submit", async e=>{
   e.preventDefault();
-  const email = document.getElementById("login-email").value.trim();
-  const password = document.getElementById("login-password").value;
-  try{ await auth.signInWithEmailAndPassword(email,password); } 
-  catch(err){ alert(err.message); }
+  const email=document.getElementById("login-email").value.trim();
+  const password=document.getElementById("login-password").value;
+  try{
+    await auth.signInWithEmailAndPassword(email,password);
+  }catch(e){ alert(e.message);}
 });
-
 // Logout
-logoutBtn.addEventListener("click",()=>auth.signOut());
+document.getElementById("logout-btn").onclick=()=>auth.signOut();
 
-// --- Redeem Key ---
-redeemBtn.addEventListener("click", async ()=>{
-  const key = redeemInput.value.trim();
-  const user = auth.currentUser;
-  if(!key || !user) return alert("Enter key.");
-  const keyDoc = await db.collection("keys").doc(key).get();
-  if(!keyDoc.exists) return alert("Invalid key.");
-  const data = keyDoc.data();
-  if(data.used) return alert("Key already used.");
+// Redeem Key
+document.getElementById("redeem-key-btn").onclick=async ()=>{
+  const key=redeemInput.value.trim();
+  const user=auth.currentUser;
+  if(!key || !user) return alert("Enter key");
+  const keyDoc=await db.collection("keys").doc(key).get();
+  if(!keyDoc.exists) return alert("Invalid key");
+  const data=keyDoc.data();
+  if(data.used) return alert("Key already used");
   if(key===OWNER_KEY){
     await db.collection("users").doc(user.uid).update({role:"owner"});
-    alert("You are now an Owner!");
+    alert("You are now owner");
     loadKeys();
     return;
   }
@@ -261,189 +306,172 @@ redeemBtn.addEventListener("click", async ()=>{
   alert(`Redeemed ${data.product}`);
   loadOrders();
   loadKeys();
-});
+};
 
 // Load Orders
 async function loadOrders(){
   ordersList.innerHTML="";
-  const user = auth.currentUser;
+  const user=auth.currentUser;
   if(!user) return;
-  const snapshot = await db.collection("orders").where("uid","==",user.uid).get();
-  if(snapshot.empty){ ordersList.innerHTML="<tr><td colspan='3' style='color:var(--muted)'>No orders yet</td></tr>"; return;}
-  snapshot.forEach(doc=>{
-    const d = doc.data();
-    const statusColor = d.status==="Pending"?"status-pending":"status-unused";
-    const tr=document.createElement("tr");
-    tr.innerHTML=`<td>${d.product}</td><td>${new Date(d.redeemedAt.seconds*1000).toLocaleString()}</td><td class="${statusColor}">${d.status}</td>`;
-    ordersList.appendChild(tr);
+  const snap=await db.collection("orders").where("uid","==",user.uid).get();
+  if(snap.empty){ordersList.innerHTML="<tr><td colspan='3' style='color:var(--muted)'>No orders yet</td></tr>";return;}
+  snap.forEach(doc=>{
+    const d=doc.data();
+    const statusColor=d.status==="Pending"?"status-pending":"status-unused";
+    const row=document.createElement("tr");
+    row.innerHTML=`<td>${d.product}</td><td>${new Date(d.redeemedAt.seconds*1000).toLocaleString()}</td><td class="${statusColor}">${d.status}</td>`;
+    ordersList.appendChild(row);
   });
 }
 
-// Owner Keys
-createKeyBtn.addEventListener("click", async ()=>{
-  const product = ownerProductName.value.trim();
-  const key = ownerKeyInput.value.trim();
+// Load Keys
+async function loadKeys(){
+  document.getElementById("keys-list").innerHTML="";
+  const snap=await db.collection("keys").get();
+  snap.forEach(doc=>{
+    const d=doc.data();
+    const row=document.createElement("tr");
+    const statusClass=d.used?"status-used":"status-unused";
+    row.innerHTML=`<td>${doc.id}</td><td>${d.product}</td><td class="${statusClass}">${d.used?"Used":"Unused"}</td><td>${d.redeemedBy||"-"}</td><td><button class="delete-btn" data-key="${doc.id}">Delete</button></td>`;
+    document.getElementById("keys-list").appendChild(row);
+  });
+  document.querySelectorAll(".delete-btn").forEach(btn=>{
+    btn.onclick=async ()=>{
+      if(confirm("Delete key?")){
+        await db.collection("keys").doc(btn.dataset.key).delete();
+        loadKeys();
+      }
+    };
+  });
+}
+
+// Create Key
+document.getElementById("create-key-btn").onclick=async ()=>{
+  const product=ownerProductName.value.trim();
+  const key=ownerKeyInput.value.trim();
   if(!product || !key) return alert("Enter product and key");
-  const exists = await db.collection("keys").doc(key).get();
-  if(exists.exists) return alert("Key already exists");
+  const exists=await db.collection("keys").doc(key).get();
+  if(exists.exists) return alert("Key exists");
   await db.collection("keys").doc(key).set({product, used:false});
   ownerProductName.value="";
   ownerKeyInput.value="";
   loadKeys();
-  alert("Key created!");
-});
+  alert("Key created");
+};
 
-async function loadKeys(){
-  keysList.innerHTML="";
-  const snapshot = await db.collection("keys").get();
-  snapshot.forEach(doc=>{
-    const d = doc.data();
-    const tr=document.createElement("tr");
-    const statusClass = d.used ? "status-used" : "status-unused";
-    tr.innerHTML=`<td>${doc.id}</td><td>${d.product}</td><td class="${statusClass}">${d.used?"Used":"Unused"}</td><td>${d.redeemedBy||"-"}</td><td><span class="delete-btn" data-key="${doc.id}">Delete</span></td>`;
-    keysList.appendChild(tr);
-  });
-  document.querySelectorAll(".delete-btn").forEach(btn=>{
-    btn.addEventListener("click", async ()=>{
-      const key = btn.dataset.key;
-      if(confirm(`Delete key ${key}?`)){
-        await db.collection("keys").doc(key).delete();
-        loadKeys();
-      }
-    });
-  });
-}
-
-// Search Keys
-searchKeys.addEventListener("input", ()=>{
-  const filter = searchKeys.value.toLowerCase();
+// Search keys
+document.getElementById("search-keys").addEventListener("input", ()=>{
+  const filter=document.getElementById("search-keys").value.toLowerCase();
   document.querySelectorAll("#keys-list tr").forEach(tr=>{
-    tr.style.display = tr.textContent.toLowerCase().includes(filter) ? "" : "none";
+    tr.style.display=tr.textContent.toLowerCase().includes(filter)?"":"none";
   });
 });
 
-// --- Inbox System ---
+// --- Messaging System ---
 
-// Load customer conversations
+// Load user conversations
 async function loadConversations(){
-  conversationsDiv.innerHTML="";
-  const user = auth.currentUser;
+  document.getElementById("conversations").innerHTML="";
+  const user=auth.currentUser;
   if(!user) return;
-
-  // Fetch all conversations involving this user
-  const snapshot = await db.collection("conversations").where("uid","==",user.uid).get();
-  snapshot.forEach(doc => {
-    const data = doc.data();
-    const conv = document.createElement("div");
-    conv.className = "conversation";
-    conv.innerHTML = `
-      <h4>${data.product} (${data.key}) - ${data.status}</h4>
-      <div id="messages-${doc.id}" style="max-height:200px; overflow-y:auto; border:1px solid rgba(255,255,255,0.2); padding:8px; margin-bottom:8px;"></div>`;
-    conversationsDiv.appendChild(conv);
-
-    // Display messages
-    const messagesDiv = document.getElementById(`messages-${doc.id}`);
-    if(data.messages){
-      data.messages.sort((a,b)=> a.time.seconds - b.time.seconds).forEach(msg => {
-        const m = document.createElement("div");
-        m.className = "message";
-        m.innerHTML = `<b>${msg.sender}</b>: ${msg.text} <small>(${msg.status})</small>`;
-        messagesDiv.appendChild(m);
-      });
-    }
+  const snap=await db.collection("conversations").where("uid","==",user.uid).get();
+  snap.forEach(doc=>{
+    const data=doc.data();
+    const convDiv=document.createElement("div");
+    convDiv.style.border="1px solid rgba(255,255,255,0.2)";
+    convDiv.style.borderRadius="8px";
+    convDiv.style.padding="8px";
+    convDiv.style.marginBottom="8px";
+    convDiv.style.cursor="pointer";
+    convDiv.innerHTML=`<b>${data.product} (${data.key})</b> - ${data.status}`;
+    convDiv.onclick=()=>loadChat(doc.id, data);
+    document.getElementById("conversations").appendChild(convDiv);
   });
 }
 
 // Load owner conversations
-async function loadOwnerConversations() {
+async function loadOwnerConversations(){
   ownerConversationsDiv.innerHTML="";
-  const snapshot = await db.collection("conversations").get();
-  snapshot.forEach(doc => {
-    const data = doc.data();
-    const conv = document.createElement("div");
-    conv.className = "conversation";
-    conv.innerHTML = `
-      <h4>${data.product} (${data.key}) - ${data.status}</h4>
-      <div id="owner-messages-${doc.id}" style="max-height:200px; overflow-y:auto; border:1px solid rgba(255,255,255,0.2); padding:8px; margin-bottom:8px;"></div>`;
-    ownerConversationsDiv.appendChild(conv);
-
-    // Display messages
-    const messagesDiv = document.getElementById(`owner-messages-${doc.id}`);
-    if(data.messages){
-      data.messages.sort((a,b)=> a.time.seconds - b.time.seconds).forEach(msg => {
-        const m = document.createElement("div");
-        m.className = "message";
-        m.innerHTML = `<b>${msg.sender}</b>: ${msg.text} <small>(${msg.status})</small>`;
-        messagesDiv.appendChild(m);
-      });
-    }
+  const snap=await db.collection("conversations").get();
+  snap.forEach(doc=>{
+    const data=doc.data();
+    const convDiv=document.createElement("div");
+    convDiv.style.border="1px solid rgba(255,255,255,0.2)";
+    convDiv.style.borderRadius="8px";
+    convDiv.style.padding="8px";
+    convDiv.style.marginBottom="8px";
+    convDiv.style.cursor="pointer";
+    convDiv.innerHTML=`<b>${data.product} (${data.key})</b> - ${data.status}`;
+    convDiv.onclick=()=>loadChat(doc.id, data);
+    ownerConversationsDiv.appendChild(convDiv);
   });
 }
 
-// Send message (both user and owner use same function)
-sendMessageBtn.addEventListener("click", async ()=>{
-  const text = messageInput.value.trim();
-  const user = auth.currentUser;
-  if(!text || !user) return alert("Please sign in and enter a message.");
-
-  // Get latest order to identify conversation
-  const ordersSnap = await db.collection("orders").where("uid","==",user.uid).orderBy("redeemedAt","desc").limit(1).get();
-  if(ordersSnap.empty) return alert("No orders found to message about.");
-
-  const orderDoc = ordersSnap.docs[0];
-  const orderData = orderDoc.data();
-
-  // Generate a shared conversation ID
-  const convId = `conv_${user.uid}_${orderData.key}`;
-
-  const convRef = db.collection("conversations").doc(convId);
-  const convDoc = await convRef.get();
-
-  const msgObj = {
-    sender: user.email,
-    text: text,
-    status: orderData.status,
-    key: orderData.key,
-    product: orderData.product,
-    time: new Date()
-  };
-
-  if(!convDoc.exists){
-    // Create new conversation
-    await convRef.set({ uid: user.uid, product: orderData.product, key: orderData.key, status: orderData.status, messages: [msgObj] });
-  } else {
-    // Append message
-    await convRef.update({ messages: firebase.firestore.FieldValue.arrayUnion(msgObj) });
+// Load chat messages
+async function loadChat(convId, data){
+  currentConvId=convId;
+  document.getElementById("messages").innerHTML="";
+  // Fetch conversation
+  const convRef=await db.collection("conversations").doc(convId).get();
+  if(!convRef.exists) return;
+  const convData=convRef.data();
+  // Show messages
+  if(convData.messages){
+    convData.messages.sort((a,b)=>a.time.seconds - b.time.seconds);
+    convData.messages.forEach(msg=>{
+      const msgDiv=document.createElement("div");
+      msgDiv.className="message "+(msg.sender===auth.currentUser.email?"user":"owner");
+      msgDiv.innerHTML=`<b>${msg.sender}</b>: ${msg.text}`;
+      document.getElementById("messages").appendChild(msgDiv);
+    });
   }
+  // Set current conversation for sending
+  window.currentConvId=convId;
+}
 
-  messageInput.value="";
-  loadConversations();
+// Send message
+document.getElementById("send-btn").onclick=async ()=>{
+  const text=document.getElementById("message-input").value.trim();
+  if(!text || !auth.currentUser || !currentConvId) return;
+  const convRef=await db.collection("conversations").doc(currentConvId);
+  const convDoc=await convRef.get();
+  if(!convDoc.exists) return;
+  const newMsg={
+    sender:auth.currentUser.email,
+    text:text,
+    time:new Date()
+  };
+  await convRef.update({messages:firebase.firestore.FieldValue.arrayUnion(newMsg)});
+  document.getElementById("message-input").value="";
+  loadChat(currentConvId); // reload chat
+  // refresh owner view
   loadOwnerConversations();
-});
+};
 
-// --- Firebase auth state ---
-auth.onAuthStateChanged(async user => {
+// Firebase auth state
+auth.onAuthStateChanged(async user=>{
   if(user){
-    authScreen.style.display="none";
-    welcomeEl.textContent=`Hi, ${user.displayName||"User"}`;
-    userEmailEl.textContent=user.email;
-    logoutBtn.classList.remove("hidden");
-    const doc = await db.collection("users").doc(user.uid).get();
-    const userData = doc.data() || {username:"User", role:"user"};
-    if(userData.role==="owner") ownerControlsBtn.classList.remove("hidden");
-    else ownerControlsBtn.classList.add("hidden");
+    document.getElementById("auth-screen").style.display='none';
+    document.getElementById("welcome").textContent=`Hi, ${user.displayName||"User"}`;
+    document.getElementById("user-email").textContent=user.email;
+    document.getElementById("logout-btn").classList.remove("hidden");
+    // Check user role
+    const userDoc=await db.collection("users").doc(user.uid).get();
+    const role=userDoc.exists?userDoc.data().role:"user";
+    if(role==="owner"){
+      document.getElementById("menu-owner").classList.remove("hidden");
+    }else{
+      document.getElementById("menu-owner").classList.add("hidden");
+    }
+    // Load data
     loadOrders();
     loadKeys();
     loadConversations();
     loadOwnerConversations();
-  } else {
-    authScreen.style.display="flex";
-    dashboardView.classList.add("hidden");
-    redeemView.classList.add("hidden");
-    ordersView.classList.add("hidden");
-    inboxView.classList.add("hidden");
-    ownerView.classList.add("hidden");
-    logoutBtn.classList.add("hidden");
+  }else{
+    document.getElementById("auth-screen").style.display='flex';
+    document.querySelectorAll('#main-content > div').forEach(d=>d.classList.add('hidden'));
+    document.getElementById("logout-btn").classList.add("hidden");
   }
 });
 </script>
