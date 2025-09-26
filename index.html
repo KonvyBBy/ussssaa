@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Konvy Accounts — Owner & Customer Panel</title>
+<title>Konvy Accounts</title>
 <style>
 :root{ --bg:#000; --fg:#fff; --muted:#bdbdbd; --accent:#fff; --green:#0f0; --red:#f33; --orange:#f90; }
 *{box-sizing:border-box}
@@ -39,6 +39,7 @@ th,td{padding:8px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.2);
 </style>
 </head>
 <body>
+
 <!-- AUTH SCREEN -->
 <div id="auth-screen">
   <div class="card">
@@ -56,7 +57,7 @@ th,td{padding:8px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.2);
       <button type="submit">Sign In</button>
     </form>
 
-    <form id="signup-form" style="display:none;">
+    <form id="signup-form" class="hidden">
       <label>Username</label>
       <input type="text" id="signup-username" placeholder="Username" required>
       <label>Email</label>
@@ -99,7 +100,7 @@ th,td{padding:8px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.2);
     </div>
 
     <div id="orders-view" class="hidden">
-      <h2>My Orderss</h2>
+      <h2>My Orders</h2>
       <table>
         <thead>
           <tr><th>Product</th><th>Redeemed At</th><th>Status</th></tr>
@@ -159,9 +160,14 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 // Elements
-const welcomeEl=document.getElementById('welcome');
-const userEmailEl=document.getElementById('user-email');
-const logoutBtn=document.getElementById('logout-btn');
+const btnLogin = document.getElementById("btn-login");
+const btnSignup = document.getElementById("btn-signup");
+const loginForm = document.getElementById("login-form");
+const signupForm = document.getElementById("signup-form");
+const authScreen = document.getElementById("auth-screen");
+const welcomeEl = document.getElementById("welcome");
+const userEmailEl = document.getElementById("user-email");
+const logoutBtn = document.getElementById("logout-btn");
 const dashboardView=document.getElementById('dashboard-view');
 const redeemView=document.getElementById('redeem-view');
 const ordersView=document.getElementById('orders-view');
@@ -176,22 +182,24 @@ const ownerKeyInput=document.getElementById('owner-key');
 const createKeyBtn=document.getElementById('create-key-btn');
 const keysList=document.getElementById('keys-list');
 const searchKeys=document.getElementById('search-keys');
-const authScreen=document.getElementById('auth-screen');
-
-const menuDashboard=document.getElementById('menu-dashboard');
-const menuRedeem=document.getElementById('menu-redeem');
-const menuOrders=document.getElementById('menu-orders');
-const menuTicket=document.getElementById('menu-ticket');
 const ticketTabs=document.getElementById('ticket-tabs');
 const messageInput=document.getElementById('message-input');
 const sendMessageBtn=document.getElementById('send-message-btn');
 
-// Menu switching
-menuDashboard.addEventListener('click',()=>switchView('dashboard'));
-menuRedeem.addEventListener('click',()=>switchView('redeem'));
-menuOrders.addEventListener('click',()=>switchView('orders'));
-menuTicket.addEventListener('click',()=>switchView('ticket'));
-menuOwner.addEventListener('click',()=>switchView('owner'));
+// Owner Key
+const OWNER_KEY="KDFIHFdawdd124345#$@#FIGwdwdaHE@";
+
+// --- AUTH SWITCH ---
+btnLogin.addEventListener("click", ()=>{btnLogin.classList.add("active"); btnSignup.classList.remove("active"); loginForm.classList.remove("hidden"); signupForm.classList.add("hidden");});
+btnSignup.addEventListener("click", ()=>{btnSignup.classList.add("active"); btnLogin.classList.remove("active"); loginForm.classList.add("hidden"); signupForm.classList.remove("hidden");});
+
+// Menu
+document.getElementById('menu-dashboard').addEventListener('click',()=>switchView('dashboard'));
+document.getElementById('menu-redeem').addEventListener('click',()=>switchView('redeem'));
+document.getElementById('menu-orders').addEventListener('click',()=>switchView('orders'));
+document.getElementById('menu-ticket').addEventListener('click',()=>switchView('ticket'));
+document.getElementById('menu-owner').addEventListener('click',()=>switchView('owner'));
+
 function switchView(view){
   dashboardView.classList.add('hidden');
   redeemView.classList.add('hidden');
@@ -199,22 +207,14 @@ function switchView(view){
   ticketView.classList.add('hidden');
   ownerView.classList.add('hidden');
   document.querySelectorAll('.sidebar button').forEach(b=>b.classList.remove('active'));
-  if(view==='dashboard'){dashboardView.classList.remove('hidden'); menuDashboard.classList.add('active');}
-  if(view==='redeem'){redeemView.classList.remove('hidden'); menuRedeem.classList.add('active');}
-  if(view==='orders'){ordersView.classList.remove('hidden'); menuOrders.classList.add('active'); loadOrders();}
-  if(view==='ticket'){ticketView.classList.remove('hidden'); menuTicket.classList.add('active'); loadTicketsRealtime();}
-  if(view==='owner'){ownerView.classList.remove('hidden'); menuOwner.classList.add('active'); loadKeys();}
+  if(view==='dashboard'){dashboardView.classList.remove('hidden'); document.getElementById('menu-dashboard').classList.add('active');}
+  if(view==='redeem'){redeemView.classList.remove('hidden'); document.getElementById('menu-redeem').classList.add('active');}
+  if(view==='orders'){ordersView.classList.remove('hidden'); document.getElementById('menu-orders').classList.add('active'); loadOrders();}
+  if(view==='ticket'){ticketView.classList.remove('hidden'); document.getElementById('menu-ticket').classList.add('active'); loadTicketsRealtime();}
+  if(view==='owner'){ownerView.classList.remove('hidden'); document.getElementById('menu-owner').classList.add('active'); loadKeys();}
 }
 
-// AUTH SWITCH
-const btnLogin = document.getElementById("btn-login");
-const btnSignup = document.getElementById("btn-signup");
-const loginForm = document.getElementById("login-form");
-const signupForm = document.getElementById("signup-form");
-btnLogin.addEventListener("click", ()=>{btnLogin.classList.add("active"); btnSignup.classList.remove("active"); loginForm.style.display="block"; signupForm.style.display="none";});
-btnSignup.addEventListener("click", ()=>{btnSignup.classList.add("active"); btnLogin.classList.remove("active"); loginForm.style.display="none"; signupForm.style.display="block";});
-
-// Signup
+// --- SIGNUP / LOGIN ---
 signupForm.addEventListener("submit", async e=>{
   e.preventDefault();
   const username = document.getElementById("signup-username").value.trim();
@@ -227,7 +227,6 @@ signupForm.addEventListener("submit", async e=>{
   } catch(err){ alert(err.message); }
 });
 
-// Login
 loginForm.addEventListener("submit", async e=>{
   e.preventDefault();
   const email = document.getElementById("login-email").value.trim();
@@ -236,64 +235,10 @@ loginForm.addEventListener("submit", async e=>{
   catch(err){ alert(err.message); }
 });
 
-// OWNER SPECIAL KEY
-const OWNER_KEY="KDFIHFdawdd124345#$@#FIGwdwdaHE@";
-db.collection("keys").doc(OWNER_KEY).get().then(doc=>{if(!doc.exists){db.collection("keys").doc(OWNER_KEY).set({product:"Owner Access", role:"owner", used:false})}});
+// Logout
+logoutBtn.addEventListener("click",()=>auth.signOut());
 
-// Load orders
-async function loadOrders(){
-  ordersList.innerHTML="";
-  const user = auth.currentUser;
-  if(!user) return;
-  const snapshot = await db.collection("orders").where("uid","==",user.uid).get();
-  if(snapshot.empty){ ordersList.innerHTML="<tr><td colspan='3' style='color:var(--muted)'>No orders yet</td></tr>"; return;}
-  snapshot.forEach(doc=>{
-    const d = doc.data();
-    const tr=document.createElement("tr");
-    tr.innerHTML=`<td>${d.product}</td><td>${new Date(d.redeemedAt.seconds*1000).toLocaleString()}</td>
-                    <td class="${d.status==='Pending'?'status-pending':'status-unused'}">${d.status||"Pending"}</td>`;
-    ordersList.appendChild(tr);
-  });
-}
-
-// Load keys for owner
-async function loadKeys(){
-  keysList.innerHTML="";
-  const snapshot = await db.collection("keys").get();
-  snapshot.forEach(doc=>{
-    const d = doc.data();
-    const tr=document.createElement("tr");
-    const statusClass = d.used ? "status-used" : "status-unused";
-    tr.innerHTML=`
-      <td>${doc.id}</td>
-      <td>${d.product}</td>
-      <td class="${statusClass}">${d.used ? "Used":"Unused"}</td>
-      <td>${d.redeemedBy||"-"}</td>
-      <td><span class="delete-btn" data-key="${doc.id}">Delete</span></td>
-    `;
-    keysList.appendChild(tr);
-  });
-  // Delete handler
-  document.querySelectorAll(".delete-btn").forEach(btn=>{
-    btn.addEventListener("click", async ()=>{
-      const key = btn.dataset.key;
-      if(confirm(`Delete key ${key}?`)){
-        await db.collection("keys").doc(key).delete();
-        loadKeys();
-      }
-    });
-  });
-}
-
-// Search keys
-searchKeys.addEventListener("input", ()=>{
-  const filter = searchKeys.value.toLowerCase();
-  document.querySelectorAll("#keys-list tr").forEach(tr=>{
-    tr.style.display = tr.textContent.toLowerCase().includes(filter) ? "" : "none";
-  });
-});
-
-// Redeem
+// --- Redeem Key ---
 redeemBtn.addEventListener("click", async ()=>{
   const key = redeemInput.value.trim();
   const user = auth.currentUser;
@@ -315,7 +260,23 @@ redeemBtn.addEventListener("click", async ()=>{
   loadKeys();
 });
 
-// Create key
+// Load Orders
+async function loadOrders(){
+  ordersList.innerHTML="";
+  const user = auth.currentUser;
+  if(!user) return;
+  const snapshot = await db.collection("orders").where("uid","==",user.uid).get();
+  if(snapshot.empty){ ordersList.innerHTML="<tr><td colspan='3' style='color:var(--muted)'>No orders yet</td></tr>"; return;}
+  snapshot.forEach(doc=>{
+    const d = doc.data();
+    const tr=document.createElement("tr");
+    const statusColor = d.status==="Pending"?"status-pending":"status-unused";
+    tr.innerHTML=`<td>${d.product}</td><td>${new Date(d.redeemedAt.seconds*1000).toLocaleString()}</td><td class="${statusColor}">${d.status}</td>`;
+    ordersList.appendChild(tr);
+  });
+}
+
+// Owner Keys
 createKeyBtn.addEventListener("click", async ()=>{
   const product = ownerProductName.value.trim();
   const key = ownerKeyInput.value.trim();
@@ -329,77 +290,78 @@ createKeyBtn.addEventListener("click", async ()=>{
   alert("Key created!");
 });
 
-// Logout
-logoutBtn.addEventListener("click",()=>auth.signOut());
+async function loadKeys(){
+  keysList.innerHTML="";
+  const snapshot = await db.collection("keys").get();
+  snapshot.forEach(doc=>{
+    const d = doc.data();
+    const tr=document.createElement("tr");
+    const statusClass = d.used ? "status-used" : "status-unused";
+    tr.innerHTML=`<td>${doc.id}</td><td>${d.product}</td><td class="${statusClass}">${d.used?"Used":"Unused"}</td><td>${d.redeemedBy||"-"}</td><td><span class="delete-btn" data-key="${doc.id}">Delete</span></td>`;
+    keysList.appendChild(tr);
+  });
+  document.querySelectorAll(".delete-btn").forEach(btn=>{
+    btn.addEventListener("click", async ()=>{
+      const key = btn.dataset.key;
+      if(confirm(`Delete key ${key}?`)){
+        await db.collection("keys").doc(key).delete();
+        loadKeys();
+      }
+    });
+  });
+}
 
-// --- TICKET SYSTEM ---
-let activeTicketId = localStorage.getItem('activeTicketId') || null;
+// Search Keys
+searchKeys.addEventListener("input", ()=>{
+  const filter = searchKeys.value.toLowerCase();
+  document.querySelectorAll("#keys-list tr").forEach(tr=>{
+    tr.style.display = tr.textContent.toLowerCase().includes(filter) ? "" : "none";
+  });
+});
 
-function loadTicketsRealtime(){
+// --- Ticket System ---
+let activeTicketId = null;
+async function loadTicketsRealtime(){
   const user = auth.currentUser;
   if(!user) return;
-
-  db.collection("tickets").where("uid","==",user.uid).orderBy("createdAt").onSnapshot(snapshot=>{
-    ticketTabs.innerHTML="";
-    snapshot.forEach(doc=>{
-      const d = doc.data();
-      const tab = document.createElement("div");
-      tab.classList.add("ticket-tab");
-      if(doc.id === activeTicketId) tab.classList.add("active");
-      tab.textContent = `${d.product} (${d.status})`;
-      tab.addEventListener("click", () => {
-        activeTicketId = doc.id;
-        localStorage.setItem('activeTicketId', activeTicketId);
-        loadMessages();
-        updateTabActive();
-      });
-      ticketTabs.appendChild(tab);
-    });
-
-    if(!activeTicketId && snapshot.docs.length>0){
-      activeTicketId = snapshot.docs[0].id;
-      localStorage.setItem('activeTicketId', activeTicketId);
-    }
-    loadMessages();
-    updateTabActive();
+  const snapshot = await db.collection("tickets").where("uid","==",user.uid).get();
+  ticketTabs.innerHTML="";
+  snapshot.forEach(doc=>{
+    const d = doc.data();
+    const tab = document.createElement("div");
+    tab.textContent = `${d.key} (${d.status})`;
+    tab.classList.add("ticket-tab");
+    tab.dataset.id = doc.id;
+    if(activeTicketId===doc.id) tab.classList.add("active");
+    tab.addEventListener("click", ()=>{activeTicketId=doc.id; renderMessages(doc.id); loadTicketsRealtime();});
+    ticketTabs.appendChild(tab);
   });
 }
 
-function loadMessages(){
-  if(!activeTicketId) { messageContainer.innerHTML="No active ticket"; return;}
-  const user = auth.currentUser;
-  db.collection("tickets").doc(activeTicketId)
-    .onSnapshot(doc=>{
-      if(!doc.exists) return;
-      const data = doc.data();
-      messageContainer.innerHTML = "";
-      data.messages.forEach(msg=>{
-        const div = document.createElement("div");
-        div.classList.add("message");
-        div.innerHTML = `<strong>${msg.from===user.uid?"You":"Owner"}:</strong> ${msg.text}<br>
-          <small>Order: ${data.status} | Key: ${data.key} | Product: ${data.product}</small>`;
-        messageContainer.appendChild(div);
-      });
-      messageContainer.scrollTop = messageContainer.scrollHeight;
-    });
-}
-
-function updateTabActive(){
-  document.querySelectorAll(".ticket-tab").forEach(tab=>{
-    tab.classList.remove("active");
-    if(tab.textContent.includes(activeTicketId)) tab.classList.add("active");
+async function renderMessages(ticketId){
+  const messagesDiv = document.getElementById("ticket-tabs");
+  const ticketRef = db.collection("tickets").doc(ticketId);
+  const doc = await ticketRef.get();
+  if(!doc.exists) return;
+  const d = doc.data();
+  messagesDiv.innerHTML="";
+  d.messages?.forEach(msg=>{
+    const m = document.createElement("div");
+    m.classList.add("message");
+    m.innerHTML=`<b>${msg.sender}</b>: ${msg.text} <small>(${msg.status})</small>`;
+    messagesDiv.appendChild(m);
   });
 }
 
+// Send message
 sendMessageBtn.addEventListener("click", async ()=>{
   const text = messageInput.value.trim();
-  if(!text || !activeTicketId) return;
   const user = auth.currentUser;
+  if(!text || !user || !activeTicketId) return;
   const ticketRef = db.collection("tickets").doc(activeTicketId);
-  await ticketRef.update({
-    messages: firebase.firestore.FieldValue.arrayUnion({from:user.uid,text:text,ts:new Date()})
-  });
+  await ticketRef.update({messages: firebase.firestore.FieldValue.arrayUnion({sender:user.email,text,status:"Delivered"}),updatedAt:new Date()});
   messageInput.value="";
+  renderMessages(activeTicketId);
 });
 
 // Auth state
@@ -413,6 +375,9 @@ auth.onAuthStateChanged(async user=>{
     const userData = doc.data() || {username:"User", role:"user"};
     if(userData.role==="owner") ownerControlsBtn.classList.remove("hidden");
     else ownerControlsBtn.classList.add("hidden");
+    loadOrders();
+    loadKeys();
+    loadTicketsRealtime();
   } else {
     authScreen.style.display="flex";
     dashboardView.classList.add("hidden");
