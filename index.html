@@ -33,7 +33,7 @@ th,td{padding:8px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.2);
 .status-unused{color:var(--green);font-weight:700;}
 .status-pending{color:var(--orange);font-weight:700;}
 .delete-btn{background:red;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;cursor:pointer;}
-.message{margin-bottom:6px;padding:6px 8px;border-radius:6px;background:rgba(255,255,255,0.05);}
+.message{margin-bottom:6px;padding:6px 8px;border-radius:6px; background:rgba(255,255,255,0.05);}
 .conversation{border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:10px;margin-bottom:12px;}
 .conversation h4{margin:0 0 6px 0;}
 </style>
@@ -112,9 +112,9 @@ th,td{padding:8px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.2);
     <div id="inbox-view" class="hidden">
       <h2>Inbox</h2>
       <div id="conversations"></div>
-      <div class="card">
+      <div class="card" style="margin-top:12px;">
         <textarea id="message-input" placeholder="Type your message..."></textarea>
-        <button id="send-message-btn">Send</button>
+        <button id="send-message-btn" style="margin-top:8px;">Send</button>
       </div>
     </div>
 
@@ -323,75 +323,106 @@ searchKeys.addEventListener("input", ()=>{
 });
 
 // --- Inbox System ---
-let currentConversationId = null;
 
 // Load customer conversations
 async function loadConversations(){
+  conversationsDiv.innerHTML="";
   const user = auth.currentUser;
   if(!user) return;
-  conversationsDiv.innerHTML="";
+
+  // Fetch all conversations involving this user
   const snapshot = await db.collection("conversations").where("uid","==",user.uid).get();
-  snapshot.forEach(doc=>{
+  snapshot.forEach(doc => {
     const data = doc.data();
     const conv = document.createElement("div");
-    conv.classList.add("conversation");
-    conv.innerHTML=`<h4>${data.product} (${data.key}) - ${data.status}</h4><div id="messages-${doc.id}"></div>`;
+    conv.className = "conversation";
+    conv.innerHTML = `
+      <h4>${data.product} (${data.key}) - ${data.status}</h4>
+      <div id="messages-${doc.id}" style="max-height:200px; overflow-y:auto; border:1px solid rgba(255,255,255,0.2); padding:8px; margin-bottom:8px;"></div>`;
     conversationsDiv.appendChild(conv);
+
+    // Display messages
     const messagesDiv = document.getElementById(`messages-${doc.id}`);
-    data.messages?.forEach(msg=>{
-      const m = document.createElement("div");
-      m.classList.add("message");
-      m.innerHTML=`<b>${msg.sender}</b>: ${msg.text} <small>(${msg.status})</small>`;
-      messagesDiv.appendChild(m);
-    });
+    if(data.messages){
+      data.messages.sort((a,b)=> a.time.seconds - b.time.seconds).forEach(msg => {
+        const m = document.createElement("div");
+        m.className = "message";
+        m.innerHTML = `<b>${msg.sender}</b>: ${msg.text} <small>(${msg.status})</small>`;
+        messagesDiv.appendChild(m);
+      });
+    }
   });
 }
 
 // Load owner conversations
-async function loadOwnerConversations(){
+async function loadOwnerConversations() {
   ownerConversationsDiv.innerHTML="";
   const snapshot = await db.collection("conversations").get();
-  snapshot.forEach(doc=>{
+  snapshot.forEach(doc => {
     const data = doc.data();
     const conv = document.createElement("div");
-    conv.classList.add("conversation");
-    conv.innerHTML=`<h4>${data.product} (${data.key}) - ${data.status}</h4><div id="owner-messages-${doc.id}"></div>`;
+    conv.className = "conversation";
+    conv.innerHTML = `
+      <h4>${data.product} (${data.key}) - ${data.status}</h4>
+      <div id="owner-messages-${doc.id}" style="max-height:200px; overflow-y:auto; border:1px solid rgba(255,255,255,0.2); padding:8px; margin-bottom:8px;"></div>`;
     ownerConversationsDiv.appendChild(conv);
+
+    // Display messages
     const messagesDiv = document.getElementById(`owner-messages-${doc.id}`);
-    data.messages?.forEach(msg=>{
-      const m = document.createElement("div");
-      m.classList.add("message");
-      m.innerHTML=`<b>${msg.sender}</b>: ${msg.text} <small>(${msg.status})</small>`;
-      messagesDiv.appendChild(m);
-    });
+    if(data.messages){
+      data.messages.sort((a,b)=> a.time.seconds - b.time.seconds).forEach(msg => {
+        const m = document.createElement("div");
+        m.className = "message";
+        m.innerHTML = `<b>${msg.sender}</b>: ${msg.text} <small>(${msg.status})</small>`;
+        messagesDiv.appendChild(m);
+      });
+    }
   });
 }
 
-// Send message
+// Send message (both user and owner use same function)
 sendMessageBtn.addEventListener("click", async ()=>{
   const text = messageInput.value.trim();
   const user = auth.currentUser;
-  if(!text || !user) return;
-  // find active conversation (latest order)
+  if(!text || !user) return alert("Please sign in and enter a message.");
+
+  // Get latest order to identify conversation
   const ordersSnap = await db.collection("orders").where("uid","==",user.uid).orderBy("redeemedAt","desc").limit(1).get();
-  if(ordersSnap.empty) return alert("No orders to message about.");
-  const order = ordersSnap.docs[0].data();
-  const convId = `${user.uid}_${ordersSnap.docs[0].id}`;
+  if(ordersSnap.empty) return alert("No orders found to message about.");
+
+  const orderDoc = ordersSnap.docs[0];
+  const orderData = orderDoc.data();
+
+  // Generate a shared conversation ID
+  const convId = `conv_${user.uid}_${orderData.key}`;
+
   const convRef = db.collection("conversations").doc(convId);
   const convDoc = await convRef.get();
-  const msgObj = {sender:user.email,text, status:order.status, key:order.key, product:order.product, time:new Date()};
+
+  const msgObj = {
+    sender: user.email,
+    text: text,
+    status: orderData.status,
+    key: orderData.key,
+    product: orderData.product,
+    time: new Date()
+  };
+
   if(!convDoc.exists){
-    await convRef.set({uid:user.uid, product:order.product, key:order.key, status:order.status, messages:[msgObj]});
+    // Create new conversation
+    await convRef.set({ uid: user.uid, product: orderData.product, key: orderData.key, status: orderData.status, messages: [msgObj] });
   } else {
-    await convRef.update({messages:firebase.firestore.FieldValue.arrayUnion(msgObj)});
+    // Append message
+    await convRef.update({ messages: firebase.firestore.FieldValue.arrayUnion(msgObj) });
   }
+
   messageInput.value="";
   loadConversations();
   loadOwnerConversations();
 });
 
-// Auth state
-auth.onAuthStateChanged(async user=>{
+// --- Firebase auth state ---
+auth.onAuthStateChanged(async user => {
   if(user){
     authScreen.style.display="none";
     welcomeEl.textContent=`Hi, ${user.displayName||"User"}`;
