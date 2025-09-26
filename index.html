@@ -44,7 +44,7 @@ footer{margin-top:18px;color:var(--muted);font-size:13px;text-align:center}
 <header>
   <div class="logo">K</div>
   <div>
-    <h1>Konvy AccountsAA</h1>
+    <h1>Konvy Accounts1</h1>
     <p class="lead">Redeem keys, view order history, manage products if owner.</p>
   </div>
 </header>
@@ -167,7 +167,7 @@ btnSignup.addEventListener('click', ()=>{ btnSignup.classList.add('active'); btn
 const OWNER_KEY = "KDFIHFdawdd124345#$@#FIGwdwdaHE@";
 db.collection("keys").doc(OWNER_KEY).get().then(doc=>{
   if(!doc.exists){
-    db.collection("keys").doc(OWNER_KEY).set({product:"Owner Access", role:"owner"});
+    db.collection("keys").doc(OWNER_KEY).set({product:"Owner Access", role:"owner", used:false});
   }
 });
 
@@ -240,21 +240,26 @@ function renderSignedOut(){
   keysList.innerHTML="";
 }
 
-// Redeem key
+// Redeem key (single-use globally)
 redeemBtn.addEventListener('click', async ()=>{
   const key = redeemInput.value.trim();
   if(!key) return alert("Enter a key");
-
   const user = auth.currentUser;
 
-  // Check if already redeemed
-  const existing = await db.collection("orders").where("userId","==",user.uid).where("key","==",key).get();
-  if(!existing.empty) return alert("You already redeemed this key");
-
-  const keyDoc = await db.collection("keys").doc(key).get();
+  const keyDocRef = db.collection("keys").doc(key);
+  const keyDoc = await keyDocRef.get();
   if(!keyDoc.exists) return alert("Invalid key");
 
   const keyData = keyDoc.data();
+  if(keyData.used) return alert("This key has already been redeemed");
+
+  // Mark as used globally
+  await keyDocRef.update({
+    used: true,
+    redeemedBy: user.uid,
+    redeemedAt: firebase.firestore.Timestamp.now()
+  });
+
   await db.collection("orders").add({
     userId: user.uid,
     key: key,
@@ -269,6 +274,7 @@ redeemBtn.addEventListener('click', async ()=>{
   } else {
     alert(`Redeemed ${keyData.product}`);
   }
+
   redeemInput.value="";
   loadOrders();
   if(auth.currentUser) loadKeys();
@@ -279,7 +285,7 @@ createKeyBtn.addEventListener('click', async ()=>{
   const product = ownerProductName.value.trim();
   const key = ownerKeyInput.value.trim();
   if(!product || !key) return alert("Fill product and key");
-  await db.collection("keys").doc(key).set({product, role:"user"});
+  await db.collection("keys").doc(key).set({product, role:"user", used:false});
   alert("Key created!");
   ownerProductName.value="";
   ownerKeyInput.value="";
@@ -308,13 +314,10 @@ async function loadKeys(){
   if(snapshot.empty) keysList.innerHTML="<div class='muted'>No keys created yet</div>";
   else snapshot.forEach(doc=>{
     const d = doc.data();
-    // Check if used
-    db.collection("orders").where("key","==",doc.id).get().then(orders=>{
-      const status = orders.empty ? "Unused" : "Used";
-      const div = document.createElement("div");
-      div.textContent = `Key: ${doc.id} | Product: ${d.product} | Status: ${status}`;
-      keysList.appendChild(div);
-    });
+    const status = d.used ? "Used" : "Unused";
+    const div = document.createElement("div");
+    div.textContent = `Key: ${doc.id} | Product: ${d.product} | Status: ${status}`;
+    keysList.appendChild(div);
   });
 }
 
