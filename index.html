@@ -33,9 +33,9 @@ th,td{padding:8px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.2);
 .status-unused{color:var(--green);font-weight:700;}
 .status-pending{color:var(--orange);font-weight:700;}
 .delete-btn{background:red;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;cursor:pointer;}
-.ticket-tab{padding:6px 8px;border:1px solid rgba(255,255,255,0.1);border-radius:6px;margin-bottom:4px;cursor:pointer;}
-.ticket-tab.active{background:var(--accent);color:var(--bg);}
 .message{margin-bottom:6px;padding:6px 8px;border-radius:6px;background:rgba(255,255,255,0.05);}
+.conversation{border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:10px;margin-bottom:12px;}
+.conversation h4{margin:0 0 6px 0;}
 </style>
 </head>
 <body>
@@ -82,7 +82,7 @@ th,td{padding:8px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.2);
     <button id="menu-dashboard" class="active">Dashboard</button>
     <button id="menu-redeem">Redeem Key</button>
     <button id="menu-orders">My Orders</button>
-    <button id="menu-ticket">Open Ticket</button>
+    <button id="menu-inbox">Inbox</button>
     <button id="menu-owner" class="hidden">Owner Panel</button>
   </div>
   <div class="content" id="main-content">
@@ -109,10 +109,10 @@ th,td{padding:8px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.2);
       </table>
     </div>
 
-    <div id="ticket-view" class="hidden">
-      <h2>Tickets</h2>
+    <div id="inbox-view" class="hidden">
+      <h2>Inbox</h2>
+      <div id="conversations"></div>
       <div class="card">
-        <div id="ticket-tabs"></div>
         <textarea id="message-input" placeholder="Type your message..."></textarea>
         <button id="send-message-btn">Send</button>
       </div>
@@ -133,6 +133,10 @@ th,td{padding:8px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.2);
           <thead><tr><th>Key</th><th>Product</th><th>Status</th><th>Redeemed By</th><th>Delete</th></tr></thead>
           <tbody id="keys-list"></tbody>
         </table>
+      </div>
+      <div class="card">
+        <h4>All Conversations</h4>
+        <div id="owner-conversations"></div>
       </div>
     </div>
   </div>
@@ -171,7 +175,7 @@ const logoutBtn = document.getElementById("logout-btn");
 const dashboardView=document.getElementById('dashboard-view');
 const redeemView=document.getElementById('redeem-view');
 const ordersView=document.getElementById('orders-view');
-const ticketView=document.getElementById('ticket-view');
+const inboxView=document.getElementById('inbox-view');
 const ownerView=document.getElementById('owner-view');
 const redeemInput=document.getElementById('redeem-key-input');
 const redeemBtn=document.getElementById('redeem-key-btn');
@@ -182,39 +186,38 @@ const ownerKeyInput=document.getElementById('owner-key');
 const createKeyBtn=document.getElementById('create-key-btn');
 const keysList=document.getElementById('keys-list');
 const searchKeys=document.getElementById('search-keys');
-const ticketTabs=document.getElementById('ticket-tabs');
+const conversationsDiv=document.getElementById('conversations');
+const ownerConversationsDiv=document.getElementById('owner-conversations');
 const messageInput=document.getElementById('message-input');
 const sendMessageBtn=document.getElementById('send-message-btn');
 
-// Owner Key
 const OWNER_KEY="KDFIHFdawdd124345#$@#FIGwdwdaHE@";
 
-// --- AUTH SWITCH ---
-btnLogin.addEventListener("click", ()=>{btnLogin.classList.add("active"); btnSignup.classList.remove("active"); loginForm.classList.remove("hidden"); signupForm.classList.add("hidden");});
-btnSignup.addEventListener("click", ()=>{btnSignup.classList.add("active"); btnLogin.classList.remove("active"); loginForm.classList.add("hidden"); signupForm.classList.remove("hidden");});
-
-// Menu
+// Menu buttons
 document.getElementById('menu-dashboard').addEventListener('click',()=>switchView('dashboard'));
 document.getElementById('menu-redeem').addEventListener('click',()=>switchView('redeem'));
 document.getElementById('menu-orders').addEventListener('click',()=>switchView('orders'));
-document.getElementById('menu-ticket').addEventListener('click',()=>switchView('ticket'));
+document.getElementById('menu-inbox').addEventListener('click',()=>switchView('inbox'));
 document.getElementById('menu-owner').addEventListener('click',()=>switchView('owner'));
 
 function switchView(view){
   dashboardView.classList.add('hidden');
   redeemView.classList.add('hidden');
   ordersView.classList.add('hidden');
-  ticketView.classList.add('hidden');
+  inboxView.classList.add('hidden');
   ownerView.classList.add('hidden');
   document.querySelectorAll('.sidebar button').forEach(b=>b.classList.remove('active'));
   if(view==='dashboard'){dashboardView.classList.remove('hidden'); document.getElementById('menu-dashboard').classList.add('active');}
   if(view==='redeem'){redeemView.classList.remove('hidden'); document.getElementById('menu-redeem').classList.add('active');}
   if(view==='orders'){ordersView.classList.remove('hidden'); document.getElementById('menu-orders').classList.add('active'); loadOrders();}
-  if(view==='ticket'){ticketView.classList.remove('hidden'); document.getElementById('menu-ticket').classList.add('active'); loadTicketsRealtime();}
-  if(view==='owner'){ownerView.classList.remove('hidden'); document.getElementById('menu-owner').classList.add('active'); loadKeys();}
+  if(view==='inbox'){inboxView.classList.remove('hidden'); document.getElementById('menu-inbox').classList.add('active'); loadConversations();}
+  if(view==='owner'){ownerView.classList.remove('hidden'); document.getElementById('menu-owner').classList.add('active'); loadKeys(); loadOwnerConversations();}
 }
 
-// --- SIGNUP / LOGIN ---
+// --- Signup/Login ---
+btnLogin.addEventListener("click", ()=>{btnLogin.classList.add("active"); btnSignup.classList.remove("active"); loginForm.style.display="block"; signupForm.style.display="none";});
+btnSignup.addEventListener("click", ()=>{btnSignup.classList.add("active"); btnLogin.classList.remove("active"); loginForm.style.display="none"; signupForm.style.display="block";});
+
 signupForm.addEventListener("submit", async e=>{
   e.preventDefault();
   const username = document.getElementById("signup-username").value.trim();
@@ -269,8 +272,8 @@ async function loadOrders(){
   if(snapshot.empty){ ordersList.innerHTML="<tr><td colspan='3' style='color:var(--muted)'>No orders yet</td></tr>"; return;}
   snapshot.forEach(doc=>{
     const d = doc.data();
-    const tr=document.createElement("tr");
     const statusColor = d.status==="Pending"?"status-pending":"status-unused";
+    const tr=document.createElement("tr");
     tr.innerHTML=`<td>${d.product}</td><td>${new Date(d.redeemedAt.seconds*1000).toLocaleString()}</td><td class="${statusColor}">${d.status}</td>`;
     ordersList.appendChild(tr);
   });
@@ -319,37 +322,48 @@ searchKeys.addEventListener("input", ()=>{
   });
 });
 
-// --- Ticket System ---
-let activeTicketId = null;
-async function loadTicketsRealtime(){
+// --- Inbox System ---
+let currentConversationId = null;
+
+// Load customer conversations
+async function loadConversations(){
   const user = auth.currentUser;
   if(!user) return;
-  const snapshot = await db.collection("tickets").where("uid","==",user.uid).get();
-  ticketTabs.innerHTML="";
+  conversationsDiv.innerHTML="";
+  const snapshot = await db.collection("conversations").where("uid","==",user.uid).get();
   snapshot.forEach(doc=>{
-    const d = doc.data();
-    const tab = document.createElement("div");
-    tab.textContent = `${d.key} (${d.status})`;
-    tab.classList.add("ticket-tab");
-    tab.dataset.id = doc.id;
-    if(activeTicketId===doc.id) tab.classList.add("active");
-    tab.addEventListener("click", ()=>{activeTicketId=doc.id; renderMessages(doc.id); loadTicketsRealtime();});
-    ticketTabs.appendChild(tab);
+    const data = doc.data();
+    const conv = document.createElement("div");
+    conv.classList.add("conversation");
+    conv.innerHTML=`<h4>${data.product} (${data.key}) - ${data.status}</h4><div id="messages-${doc.id}"></div>`;
+    conversationsDiv.appendChild(conv);
+    const messagesDiv = document.getElementById(`messages-${doc.id}`);
+    data.messages?.forEach(msg=>{
+      const m = document.createElement("div");
+      m.classList.add("message");
+      m.innerHTML=`<b>${msg.sender}</b>: ${msg.text} <small>(${msg.status})</small>`;
+      messagesDiv.appendChild(m);
+    });
   });
 }
 
-async function renderMessages(ticketId){
-  const messagesDiv = document.getElementById("ticket-tabs");
-  const ticketRef = db.collection("tickets").doc(ticketId);
-  const doc = await ticketRef.get();
-  if(!doc.exists) return;
-  const d = doc.data();
-  messagesDiv.innerHTML="";
-  d.messages?.forEach(msg=>{
-    const m = document.createElement("div");
-    m.classList.add("message");
-    m.innerHTML=`<b>${msg.sender}</b>: ${msg.text} <small>(${msg.status})</small>`;
-    messagesDiv.appendChild(m);
+// Load owner conversations
+async function loadOwnerConversations(){
+  ownerConversationsDiv.innerHTML="";
+  const snapshot = await db.collection("conversations").get();
+  snapshot.forEach(doc=>{
+    const data = doc.data();
+    const conv = document.createElement("div");
+    conv.classList.add("conversation");
+    conv.innerHTML=`<h4>${data.product} (${data.key}) - ${data.status}</h4><div id="owner-messages-${doc.id}"></div>`;
+    ownerConversationsDiv.appendChild(conv);
+    const messagesDiv = document.getElementById(`owner-messages-${doc.id}`);
+    data.messages?.forEach(msg=>{
+      const m = document.createElement("div");
+      m.classList.add("message");
+      m.innerHTML=`<b>${msg.sender}</b>: ${msg.text} <small>(${msg.status})</small>`;
+      messagesDiv.appendChild(m);
+    });
   });
 }
 
@@ -357,11 +371,23 @@ async function renderMessages(ticketId){
 sendMessageBtn.addEventListener("click", async ()=>{
   const text = messageInput.value.trim();
   const user = auth.currentUser;
-  if(!text || !user || !activeTicketId) return;
-  const ticketRef = db.collection("tickets").doc(activeTicketId);
-  await ticketRef.update({messages: firebase.firestore.FieldValue.arrayUnion({sender:user.email,text,status:"Delivered"}),updatedAt:new Date()});
+  if(!text || !user) return;
+  // find active conversation (latest order)
+  const ordersSnap = await db.collection("orders").where("uid","==",user.uid).orderBy("redeemedAt","desc").limit(1).get();
+  if(ordersSnap.empty) return alert("No orders to message about.");
+  const order = ordersSnap.docs[0].data();
+  const convId = `${user.uid}_${ordersSnap.docs[0].id}`;
+  const convRef = db.collection("conversations").doc(convId);
+  const convDoc = await convRef.get();
+  const msgObj = {sender:user.email,text, status:order.status, key:order.key, product:order.product, time:new Date()};
+  if(!convDoc.exists){
+    await convRef.set({uid:user.uid, product:order.product, key:order.key, status:order.status, messages:[msgObj]});
+  } else {
+    await convRef.update({messages:firebase.firestore.FieldValue.arrayUnion(msgObj)});
+  }
   messageInput.value="";
-  renderMessages(activeTicketId);
+  loadConversations();
+  loadOwnerConversations();
 });
 
 // Auth state
@@ -377,13 +403,14 @@ auth.onAuthStateChanged(async user=>{
     else ownerControlsBtn.classList.add("hidden");
     loadOrders();
     loadKeys();
-    loadTicketsRealtime();
+    loadConversations();
+    loadOwnerConversations();
   } else {
     authScreen.style.display="flex";
     dashboardView.classList.add("hidden");
     redeemView.classList.add("hidden");
     ordersView.classList.add("hidden");
-    ticketView.classList.add("hidden");
+    inboxView.classList.add("hidden");
     ownerView.classList.add("hidden");
     logoutBtn.classList.add("hidden");
   }
