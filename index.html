@@ -42,7 +42,7 @@ footer{margin-top:18px;color:var(--muted);font-size:13px;text-align:center}
 <header>
   <div class="logo">K</div>
   <div>
-    <h1>Konvy Accounts67</h1>
+    <h1>Konvy AccountsKK</h1>
     <p class="lead">Black & White demo — login, redeem keys, and manage products if owner.</p>
   </div>
 </header>
@@ -136,11 +136,6 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-// Enable offline persistence
-db.enablePersistence().catch((err)=>{
-  console.log("Offline persistence error", err.code);
-});
-
 // UI elements
 const btnLogin = document.getElementById('btn-login');
 const btnSignup = document.getElementById('btn-signup');
@@ -162,6 +157,17 @@ const createKeyBtn = document.getElementById('create-key-btn');
 btnLogin.addEventListener('click', ()=>{ btnLogin.classList.add('active'); btnSignup.classList.remove('active'); loginForm.style.display='block'; signupForm.style.display='none'; });
 btnSignup.addEventListener('click', ()=>{ btnSignup.classList.add('active'); btnLogin.classList.remove('active'); loginForm.style.display='none'; signupForm.style.display='block'; });
 
+// Auto-create special owner key
+const OWNER_KEY = "KDFIHFdawdd124345#$@#FIGwdwdaHE@";
+const OWNER_KEY_DATA = { product: "Owner Access", role: "owner" };
+db.collection("keys").doc(OWNER_KEY).get().then(doc=>{
+  if(!doc.exists){
+    db.collection("keys").doc(OWNER_KEY).set(OWNER_KEY_DATA)
+      .then(()=>console.log("Owner key created automatically"))
+      .catch(err=>console.error("Error creating owner key:", err));
+  }
+});
+
 // Signup
 signupForm.addEventListener('submit', async (e)=>{
   e.preventDefault();
@@ -169,29 +175,28 @@ signupForm.addEventListener('submit', async (e)=>{
   const email = document.getElementById('signup-email').value.trim();
   const password = document.getElementById('signup-password').value;
 
-  try {
+  try{
     const userCredential = await auth.createUserWithEmailAndPassword(email,password);
     await db.collection("users").doc(userCredential.user.uid).set({username, role:"user"});
-    renderSignedIn(username,email,"user");
-  } catch(error){
-    alert(error.message);
-  }
+    alert("Signup successful! Please login.");
+    loginForm.style.display='block';
+    signupForm.style.display='none';
+    btnLogin.classList.add('active');
+    btnSignup.classList.remove('active');
+  } catch(err){ alert(err.message); }
 });
 
 // Login
 loginForm.addEventListener('submit', async (e)=>{
   e.preventDefault();
   const email = document.getElementById('login-email').value.trim();
-  const password = document.getElementById('login-password').value.trim();
-
-  try {
+  const password = document.getElementById('login-password').value;
+  try{
     const userCredential = await auth.signInWithEmailAndPassword(email,password);
     const userDoc = await db.collection("users").doc(userCredential.user.uid).get();
     const userData = userDoc.data();
     renderSignedIn(userData.username,email,userData.role);
-  } catch(error){
-    alert(error.message);
-  }
+  } catch(err){ alert(err.message); }
 });
 
 // Logout
@@ -205,17 +210,14 @@ function renderSignedIn(username,email,role){
   welcomeEl.textContent = `Hi, ${username}`;
   userEmailEl.textContent = email;
   logoutBtn.classList.remove('hidden');
+  dashContent.innerHTML = '<div class="center muted">Blank dashboard — nothing here yet.</div>';
+  document.querySelector('.card .switcher').style.display='none';
   loginForm.style.display='none';
   signupForm.style.display='none';
-  document.querySelector('.card .switcher').style.display='none';
-  dashContent.innerHTML = '<div class="center muted">Blank dashboard — redeem keys or view orders.</div>';
   redeemSection.classList.remove('hidden');
 
-  if(role==="owner"){
-    ownerControls.classList.remove('hidden');
-  } else {
-    ownerControls.classList.add('hidden');
-  }
+  if(role==="owner") ownerControls.classList.remove('hidden');
+  else ownerControls.classList.add('hidden');
 }
 
 function renderSignedOut(){
@@ -230,7 +232,7 @@ function renderSignedOut(){
   ownerControls.classList.add('hidden');
 }
 
-// Key redemption
+// Redeem key
 redeemBtn.addEventListener('click', async ()=>{
   const key = redeemInput.value.trim();
   if(!key) return alert("Enter a key");
@@ -241,7 +243,6 @@ redeemBtn.addEventListener('click', async ()=>{
   const keyData = keyDoc.data();
   const user = auth.currentUser;
 
-  // Redeem
   await db.collection("orders").add({
     userId: user.uid,
     username: keyData.username || user.email,
@@ -249,7 +250,6 @@ redeemBtn.addEventListener('click', async ()=>{
     redeemedAt: firebase.firestore.Timestamp.now()
   });
 
-  // Owner key
   if(keyData.role==="owner"){
     await db.collection("users").doc(user.uid).update({role:"owner"});
     alert("Owner role granted!");
@@ -257,31 +257,27 @@ redeemBtn.addEventListener('click', async ()=>{
   } else {
     alert(`Redeemed ${keyData.product}`);
   }
-
   redeemInput.value="";
 });
 
-// Owner creates key
+// Owner create key
 createKeyBtn.addEventListener('click', async ()=>{
   const product = ownerProductName.value.trim();
   const key = ownerKeyInput.value.trim();
   if(!product || !key) return alert("Fill product and key");
-
   await db.collection("keys").doc(key).set({product, role:"user"});
   alert("Key created!");
   ownerProductName.value="";
   ownerKeyInput.value="";
 });
 
-// Auto-login on page load
+// Auto-login
 auth.onAuthStateChanged(async (user)=>{
   if(user){
     const userDoc = await db.collection("users").doc(user.uid).get();
     const userData = userDoc.data();
     renderSignedIn(userData.username,user.email,userData.role);
-  } else {
-    renderSignedOut();
-  }
+  } else renderSignedOut();
 });
 </script>
 </body>
