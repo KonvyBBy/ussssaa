@@ -35,8 +35,8 @@ footer{margin-top:18px;color:var(--muted);font-size:13px;text-align:center}
 .hidden{display:none;}
 #owner-controls{margin-top:12px;}
 #owner-controls input{width:100%;margin-bottom:6px;}
-#orders-list, #keys-list{margin-top:12px;}
-#orders-list div, #keys-list div{border:1px solid rgba(255,255,255,0.1); padding:6px; border-radius:6px; margin-bottom:4px;}
+#orders-table, #keys-table{width:100%; border-collapse:collapse; margin-top:12px;}
+#orders-table th, #orders-table td, #keys-table th, #keys-table td{border-bottom:1px solid rgba(255,255,255,0.2); padding:6px; text-align:left;}
 </style>
 </head>
 <body>
@@ -44,7 +44,7 @@ footer{margin-top:18px;color:var(--muted);font-size:13px;text-align:center}
 <header>
   <div class="logo">K</div>
   <div>
-    <h1>Konvy Accounts1</h1>
+    <h1>Konvy AccountsXD</h1>
     <p class="lead">Redeem keys, view order history, manage products if owner.</p>
   </div>
 </header>
@@ -101,7 +101,18 @@ footer{margin-top:18px;color:var(--muted);font-size:13px;text-align:center}
       <div id="redeem-section" class="hidden" style="margin-top:12px;">
         <input type="text" id="redeem-key-input" placeholder="Enter product key">
         <button id="redeem-key-btn">Redeem Key</button>
-        <div id="orders-list"></div>
+        
+        <!-- Order History Table -->
+        <h4>Your Orders</h4>
+        <table id="orders-table">
+          <thead>
+            <tr>
+              <th>Product</th>
+              <th>Redeemed At</th>
+            </tr>
+          </thead>
+          <tbody id="orders-list"></tbody>
+        </table>
       </div>
 
       <!-- Owner controls -->
@@ -110,7 +121,20 @@ footer{margin-top:18px;color:var(--muted);font-size:13px;text-align:center}
         <input type="text" id="owner-product-name" placeholder="Product Name">
         <input type="text" id="owner-key" placeholder="Key">
         <button id="create-key-btn">Create Key</button>
-        <div id="keys-list"></div>
+
+        <!-- Owner Keys Table -->
+        <h4>All Keys</h4>
+        <table id="keys-table">
+          <thead>
+            <tr>
+              <th>Key</th>
+              <th>Product</th>
+              <th>Status</th>
+              <th>Redeemed By</th>
+            </tr>
+          </thead>
+          <tbody id="keys-list"></tbody>
+        </table>
       </div>
     </div>
   </div>
@@ -240,7 +264,7 @@ function renderSignedOut(){
   keysList.innerHTML="";
 }
 
-// Redeem key (single-use globally)
+// Redeem key
 redeemBtn.addEventListener('click', async ()=>{
   const key = redeemInput.value.trim();
   if(!key) return alert("Enter a key");
@@ -253,19 +277,8 @@ redeemBtn.addEventListener('click', async ()=>{
   const keyData = keyDoc.data();
   if(keyData.used) return alert("This key has already been redeemed");
 
-  // Mark as used globally
-  await keyDocRef.update({
-    used: true,
-    redeemedBy: user.uid,
-    redeemedAt: firebase.firestore.Timestamp.now()
-  });
-
-  await db.collection("orders").add({
-    userId: user.uid,
-    key: key,
-    product: keyData.product,
-    redeemedAt: firebase.firestore.Timestamp.now()
-  });
+  await keyDocRef.update({used:true, redeemedBy:user.uid, redeemedAt:firebase.firestore.Timestamp.now()});
+  await db.collection("orders").add({userId:user.uid,key:key,product:keyData.product,redeemedAt:firebase.firestore.Timestamp.now()});
 
   if(keyData.role==="owner"){
     await db.collection("users").doc(user.uid).update({role:"owner"});
@@ -292,37 +305,40 @@ createKeyBtn.addEventListener('click', async ()=>{
   loadKeys();
 });
 
-// Load redeemed orders for customer
+// Load customer orders
 async function loadOrders(){
-  ordersList.innerHTML="";
   const user = auth.currentUser;
   const snapshot = await db.collection("orders").where("userId","==",user.uid).orderBy("redeemedAt","desc").get();
-  if(snapshot.empty) ordersList.innerHTML="<div class='muted'>No orders yet</div>";
-  else snapshot.forEach(doc=>{
+  ordersList.innerHTML="";
+  if(snapshot.empty){
+    const tr = document.createElement("tr");
+    tr.innerHTML=`<td colspan="2" style="color:var(--muted)">No orders yet</td>`;
+    ordersList.appendChild(tr);
+    return;
+  }
+  snapshot.forEach(doc=>{
     const d = doc.data();
     const date = d.redeemedAt.toDate().toLocaleString();
-    const div = document.createElement("div");
-    div.textContent = `${d.product} — Redeemed: ${date}`;
-    ordersList.appendChild(div);
+    const tr = document.createElement("tr");
+    tr.innerHTML=`<td>${d.product}</td><td>${date}</td>`;
+    ordersList.appendChild(tr);
   });
 }
 
-// Load all keys for owner
+// Load keys for owner
 async function loadKeys(){
-  keysList.innerHTML="";
   const snapshot = await db.collection("keys").get();
-  if(snapshot.empty) keysList.innerHTML="<div class='muted'>No keys created yet</div>";
-  else snapshot.forEach(doc=>{
+  keysList.innerHTML="";
+  snapshot.forEach(doc=>{
     const d = doc.data();
-    const status = d.used ? "Used" : "Unused";
-    const div = document.createElement("div");
-    div.textContent = `Key: ${doc.id} | Product: ${d.product} | Status: ${status}`;
-    keysList.appendChild(div);
+    const tr = document.createElement("tr");
+    tr.innerHTML=`<td>${doc.id}</td><td>${d.product}</td><td>${d.used?"Used":"Unused"}</td><td>${d.redeemedBy||"-"}</td>`;
+    keysList.appendChild(tr);
   });
 }
 
-// Auto-login
-auth.onAuthStateChanged(async (user)=>{
+// Check current user on page load
+auth.onAuthStateChanged(async user=>{
   if(user){
     const userDoc = await db.collection("users").doc(user.uid).get();
     const userData = userDoc.data();
