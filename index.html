@@ -32,6 +32,14 @@ th,td{padding:8px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.2);
 .status-used{color:var(--red);font-weight:700;}
 .status-unused{color:var(--green);font-weight:700;}
 .delete-btn{background:red;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;cursor:pointer;}
+.ticket-tabs{display:flex;gap:4px;margin-bottom:8px;}
+.ticket-tab{padding:6px 12px;border-radius:6px;cursor:pointer;background:rgba(255,255,255,0.1);}
+.ticket-tab.active{background:var(--accent);color:var(--bg);}
+.message-container{border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:10px;height:300px;overflow-y:auto;margin-bottom:8px;}
+.message{margin:4px 0;}
+.message .from{font-weight:700;}
+.message.read .from::after{content:" ✔";color:var(--green);}
+.message.delivered .from::after{content:" …";color:var(--muted);}
 </style>
 </head>
 <body>
@@ -110,7 +118,12 @@ th,td{padding:8px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.2);
         <input type="text" id="ticket-key-input" placeholder="Enter your key to open ticket">
         <button id="open-ticket-btn">Open Ticket</button>
       </div>
-      <div id="tickets-container"></div>
+      <div class="ticket-tabs" id="ticket-tabs"></div>
+      <div class="card">
+        <div class="message-container" id="message-container"></div>
+        <input type="text" id="message-input" placeholder="Type message" style="width:calc(100% - 100px);">
+        <button id="send-message-btn">Send</button>
+      </div>
     </div>
 
     <div id="owner-view" class="hidden">
@@ -177,10 +190,13 @@ const createKeyBtn=document.getElementById('create-key-btn');
 const keysList=document.getElementById('keys-list');
 const searchKeys=document.getElementById('search-keys');
 const authScreen=document.getElementById('auth-screen');
-const ticketsContainer=document.getElementById('tickets-container');
-const ownerTicketsContainer=document.getElementById('owner-tickets-container');
 const ticketKeyInput=document.getElementById('ticket-key-input');
 const openTicketBtn=document.getElementById('open-ticket-btn');
+const ticketTabs=document.getElementById('ticket-tabs');
+const messageContainer=document.getElementById('message-container');
+const messageInput=document.getElementById('message-input');
+const sendMessageBtn=document.getElementById('send-message-btn');
+const ownerTicketsContainer=document.getElementById('owner-tickets-container');
 
 // Menu buttons
 document.getElementById('menu-dashboard').addEventListener('click',()=>switchView('dashboard'));
@@ -254,6 +270,7 @@ redeemBtn.addEventListener("click", async ()=>{
   await db.collection("keys").doc(key).update({used:true, redeemedBy:user.uid});
   await db.collection("orders").add({uid:user.uid, product:data.product, redeemedAt:new Date(), status:"Pending", key});
   alert(`Redeemed ${data.product}`);
+  redeemInput.value="";
   loadOrders();
   loadKeys();
 });
@@ -304,8 +321,6 @@ async function loadKeys(){
     `;
     keysList.appendChild(tr);
   });
-
-  // Delete button
   document.querySelectorAll(".delete-btn").forEach(btn=>{
     btn.addEventListener("click", async ()=>{
       const key = btn.dataset.key;
@@ -325,6 +340,9 @@ searchKeys.addEventListener("input", ()=>{
   });
 });
 
+// TICKET SYSTEM
+let activeTicketId=null;
+
 // Open ticket
 openTicketBtn.addEventListener("click", async ()=>{
   const key = ticketKeyInput.value.trim();
@@ -335,7 +353,7 @@ openTicketBtn.addEventListener("click", async ()=>{
   const activeTicketSnap = await db.collection("tickets").where("uid","==",user.uid).where("status","==","Open").get();
   if(!activeTicketSnap.empty) return alert("You already have an active ticket.");
   const orderData = orderSnap.docs[0].data();
-  await db.collection("tickets").add({
+  const ticketRef = await db.collection("tickets").add({
     uid:user.uid,
     key,
     product:orderData.product,
@@ -345,52 +363,69 @@ openTicketBtn.addEventListener("click", async ()=>{
     createdAt:new Date()
   });
   ticketKeyInput.value="";
+  activeTicketId = ticketRef.id;
   alert("Ticket opened! You can now message.");
 });
 
-// Load tickets real-time
-function loadTicketsRealtime() {
+// Load tickets & create tabs
+function loadTicketsRealtime(){
   const user = auth.currentUser;
-  if (!user) return;
-  db.collection("tickets").where("uid","==",user.uid).orderBy("createdAt","desc").onSnapshot(snapshot=>{
-    ticketsContainer.innerHTML="";
-    if(snapshot.empty){ ticketsContainer.innerHTML="<div style='color:var(--muted)'>No tickets yet.</div>"; return;}
+  if(!user) return;
+  db.collection("tickets").where("uid","==",user.uid).orderBy("createdAt").onSnapshot(snapshot=>{
+    ticketTabs.innerHTML="";
     snapshot.forEach(doc=>{
-      const t=doc.data();
-      const div=document.createElement("div");
-      div.classList.add("card");
-      div.innerHTML=`
-        <strong>Product:</strong> ${t.product}<br>
-        <strong>Key:</strong> ${t.key}<br>
-        <strong>Order Status:</strong> ${t.orderStatus}<br>
-        <strong>Ticket Status:</strong> ${t.status}<br>
-        <div><strong>Messages:</strong></div>
-        <div>${t.messages.map(m=>`<div><strong>${m.from}:</strong> ${m.text}</div>`).join("")}</div>
-      `;
-      ticketsContainer.appendChild(div);
+      const d = doc.data();
+      const tab=document.createElement("div");
+      tab.classList.add("ticket-tab");
+      if(doc.id===activeTicketId) tab.classList.add("active");
+      tab.textContent=`${d.product} (${d.status})`;
+      tab.addEventListener("click", ()=>{activeTicketId=doc.id; loadMessages(); updateTabActive();});
+      ticketTabs.appendChild(tab);
     });
-  });
-
-  // Owner tickets
-  db.collection("tickets").orderBy("createdAt","desc").onSnapshot(snapshot=>{
-    ownerTicketsContainer.innerHTML="";
-    snapshot.forEach(doc=>{
-      const t=doc.data();
-      const div=document.createElement("div");
-      div.classList.add("card");
-      div.innerHTML=`
-        <strong>User ID:</strong> ${t.uid}<br>
-        <strong>Product:</strong> ${t.product}<br>
-        <strong>Key:</strong> ${t.key}<br>
-        <strong>Order Status:</strong> ${t.orderStatus}<br>
-        <strong>Ticket Status:</strong> ${t.status}<br>
-        <div><strong>Messages:</strong></div>
-        <div>${t.messages.map(m=>`<div><strong>${m.from}:</strong> ${m.text}</div>`).join("")}</div>
-      `;
-      ownerTicketsContainer.appendChild(div);
-    });
+    loadMessages();
+    updateTabActive();
   });
 }
+
+function updateTabActive(){
+  document.querySelectorAll(".ticket-tab").forEach(tab=>{
+    tab.classList.remove("active");
+    if(tab.textContent.includes(activeTicketId)) tab.classList.add("active");
+  });
+}
+
+// Load messages
+async function loadMessages(){
+  messageContainer.innerHTML="";
+  if(!activeTicketId) return;
+  const doc = await db.collection("tickets").doc(activeTicketId).get();
+  if(!doc.exists) return;
+  const data = doc.data();
+  data.messages.forEach(msg=>{
+    const div=document.createElement("div");
+    div.classList.add("message");
+    if(msg.read) div.classList.add("read");
+    if(msg.delivered) div.classList.add("delivered");
+    div.innerHTML=`<span class="from">${msg.from}:</span> ${msg.text}<br><small>Order:${data.orderStatus} | Key:${data.key} | Product:${data.product}</small>`;
+    messageContainer.appendChild(div);
+  });
+  messageContainer.scrollTop=messageContainer.scrollHeight;
+}
+
+// Send message
+sendMessageBtn.addEventListener("click", async ()=>{
+  const text=messageInput.value.trim();
+  const user=auth.currentUser;
+  if(!text || !user || !activeTicketId) return;
+  const docRef=db.collection("tickets").doc(activeTicketId);
+  const docSnap=await docRef.get();
+  if(!docSnap.exists) return;
+  const data=docSnap.data();
+  const newMsg={from:user.uid, text, read:false, delivered:true, createdAt:new Date()};
+  await docRef.update({messages:[...data.messages,newMsg]});
+  messageInput.value="";
+  loadMessages();
+});
 
 // Logout
 logoutBtn.addEventListener("click",()=>auth.signOut());
