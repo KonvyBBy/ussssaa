@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Konvy Accounts</title>
+<title>Konvy Accounts — Owner Panel</title>
 <style>
 :root{ --bg:#000; --fg:#fff; --muted:#bdbdbd; --accent:#fff; --green:#0f0; --red:#f33; }
 *{box-sizing:border-box}
@@ -31,6 +31,7 @@ th,td{padding:8px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.2);
 .switcher button.active{background:var(--accent);color:var(--bg);}
 .status-used{color:var(--red);font-weight:700;}
 .status-unused{color:var(--green);font-weight:700;}
+.delete-btn{background:red;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;cursor:pointer;}
 </style>
 </head>
 <body>
@@ -114,7 +115,7 @@ th,td{padding:8px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.2);
         <h4>All Keys</h4>
         <input type="text" id="search-keys" placeholder="Search keys...">
         <table>
-          <thead><tr><th>Key</th><th>Product</th><th>Status</th><th>Redeemed By</th></tr></thead>
+          <thead><tr><th>Key</th><th>Product</th><th>Status</th><th>Redeemed By</th><th>Delete</th></tr></thead>
           <tbody id="keys-list"></tbody>
         </table>
       </div>
@@ -167,7 +168,6 @@ document.getElementById('menu-dashboard').addEventListener('click',()=>switchVie
 document.getElementById('menu-redeem').addEventListener('click',()=>switchView('redeem'));
 document.getElementById('menu-orders').addEventListener('click',()=>switchView('orders'));
 document.getElementById('menu-owner').addEventListener('click',()=>switchView('owner'));
-
 function switchView(view){
   dashboardView.classList.add('hidden');
   redeemView.classList.add('hidden');
@@ -185,8 +185,6 @@ const btnLogin = document.getElementById("btn-login");
 const btnSignup = document.getElementById("btn-signup");
 const loginForm = document.getElementById("login-form");
 const signupForm = document.getElementById("signup-form");
-
-// Switch forms
 btnLogin.addEventListener("click", ()=>{btnLogin.classList.add("active"); btnSignup.classList.remove("active"); loginForm.style.display="block"; signupForm.style.display="none";});
 btnSignup.addEventListener("click", ()=>{btnSignup.classList.add("active"); btnLogin.classList.remove("active"); loginForm.style.display="none"; signupForm.style.display="block";});
 
@@ -212,7 +210,7 @@ loginForm.addEventListener("submit", async e=>{
   catch(err){ alert(err.message); }
 });
 
-// Owner key
+// OWNER SPECIAL KEY
 const OWNER_KEY="KDFIHFdawdd124345#$@#FIGwdwdaHE@";
 db.collection("keys").doc(OWNER_KEY).get().then(doc=>{if(!doc.exists){db.collection("keys").doc(OWNER_KEY).set({product:"Owner Access", role:"owner", used:false})}});
 
@@ -234,13 +232,30 @@ async function loadOrders(){
 // Load keys for owner
 async function loadKeys(){
   keysList.innerHTML="";
-  let snapshot = await db.collection("keys").get();
+  const snapshot = await db.collection("keys").get();
   snapshot.forEach(doc=>{
     const d = doc.data();
     const tr=document.createElement("tr");
     const statusClass = d.used ? "status-used" : "status-unused";
-    tr.innerHTML=`<td>${doc.id}</td><td>${d.product}</td><td class="${statusClass}">${d.used ? "Used":"Unused"}</td><td>${d.redeemedBy||"-"}</td>`;
+    tr.innerHTML=`
+      <td>${doc.id}</td>
+      <td>${d.product}</td>
+      <td class="${statusClass}">${d.used ? "Used":"Unused"}</td>
+      <td>${d.redeemedBy||"-"}</td>
+      <td><span class="delete-btn" data-key="${doc.id}">Delete</span></td>
+    `;
     keysList.appendChild(tr);
+  });
+
+  // Delete button handler
+  document.querySelectorAll(".delete-btn").forEach(btn=>{
+    btn.addEventListener("click", async ()=>{
+      const key = btn.dataset.key;
+      if(confirm(`Delete key ${key}?`)){
+        await db.collection("keys").doc(key).delete();
+        loadKeys();
+      }
+    });
   });
 }
 
@@ -261,19 +276,31 @@ redeemBtn.addEventListener("click", async ()=>{
   if(!keyDoc.exists) return alert("Invalid key.");
   const data = keyDoc.data();
   if(data.used) return alert("Key already used.");
-  // If owner key
   if(key===OWNER_KEY){
     await db.collection("users").doc(user.uid).update({role:"owner"});
     alert("You are now an Owner!");
     loadKeys();
     return;
   }
-  // Redeem normal key
   await db.collection("keys").doc(key).update({used:true, redeemedBy:user.uid});
   await db.collection("orders").add({uid:user.uid, product:data.product, redeemedAt:new Date()});
   alert(`Redeemed ${data.product}`);
   loadOrders();
   loadKeys();
+});
+
+// Create key
+createKeyBtn.addEventListener("click", async ()=>{
+  const product = ownerProductName.value.trim();
+  const key = ownerKeyInput.value.trim();
+  if(!product || !key) return alert("Enter product and key");
+  const exists = await db.collection("keys").doc(key).get();
+  if(exists.exists) return alert("Key already exists");
+  await db.collection("keys").doc(key).set({product, used:false});
+  ownerProductName.value="";
+  ownerKeyInput.value="";
+  loadKeys();
+  alert("Key created!");
 });
 
 // Logout
@@ -283,19 +310,22 @@ logoutBtn.addEventListener("click",()=>auth.signOut());
 auth.onAuthStateChanged(async user=>{
   if(user){
     authScreen.style.display="none";
-    document.querySelector("main").style.display="flex";
-    const doc = await db.collection("users").doc(user.uid).get();
-    const userData = doc.data() || {username:"User", role:"user"};
-    welcomeEl.textContent=`Hi, ${userData.username}`;
+    welcomeEl.textContent=`Hi, ${user.displayName||"User"}`;
     userEmailEl.textContent=user.email;
     logoutBtn.classList.remove("hidden");
+    const doc = await db.collection("users").doc(user.uid).get();
+    const userData = doc.data() || {username:"User", role:"user"};
     if(userData.role==="owner") ownerControlsBtn.classList.remove("hidden");
     else ownerControlsBtn.classList.add("hidden");
     loadOrders();
     loadKeys();
   } else {
     authScreen.style.display="flex";
-    document.querySelector("main").style.display="none";
+    dashboardView.classList.add("hidden");
+    redeemView.classList.add("hidden");
+    ordersView.classList.add("hidden");
+    ownerView.classList.add("hidden");
+    logoutBtn.classList.add("hidden");
   }
 });
 </script>
