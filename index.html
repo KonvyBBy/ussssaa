@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Konvy Accounts</title>
+<title>Konvy Accounts — Owner & Customer Panel</title>
 <style>
-:root{--bg:#000;--fg:#fff;--muted:#bdbdbd;--accent:#fff;--green:#0f0;--red:#f33;}
+:root{ --bg:#000; --fg:#fff; --muted:#bdbdbd; --accent:#fff; --green:#0f0; --red:#f33; --orange:#f90; }
 *{box-sizing:border-box}
 html,body{height:100%;margin:0;font-family:Inter,system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial;color:var(--fg);background:var(--bg);}
 body{display:flex;flex-direction:column;}
@@ -18,8 +18,8 @@ main{flex:1;display:flex;overflow:hidden;}
 .content{flex:1;padding:24px;overflow-y:auto;}
 h2{margin-top:0;color:var(--accent);}
 .card{background:rgba(255,255,255,0.02);padding:20px;border-radius:12px;margin-bottom:12px;}
-input,button{font-size:14px;}
-input[type=text],input[type=password]{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:transparent;color:var(--fg);}
+input,button,textarea{font-size:14px;}
+input[type=text],input[type=password],textarea{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:transparent;color:var(--fg);}
 button{padding:10px;border:none;border-radius:8px;background:var(--fg);color:var(--bg);cursor:pointer;font-weight:700;}
 table{width:100%;border-collapse:collapse;margin-top:12px;}
 th,td{padding:8px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.2);}
@@ -31,15 +31,11 @@ th,td{padding:8px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.2);
 .switcher button.active{background:var(--accent);color:var(--bg);}
 .status-used{color:var(--red);font-weight:700;}
 .status-unused{color:var(--green);font-weight:700;}
+.status-pending{color:var(--orange);font-weight:700;}
 .delete-btn{background:red;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;cursor:pointer;}
-.ticket-tabs{display:flex;gap:4px;margin-bottom:8px;}
-.ticket-tab{padding:6px 12px;border-radius:6px;cursor:pointer;background:rgba(255,255,255,0.1);}
+.ticket-tab{padding:6px 8px;border:1px solid rgba(255,255,255,0.1);border-radius:6px;margin-bottom:4px;cursor:pointer;}
 .ticket-tab.active{background:var(--accent);color:var(--bg);}
-.message-container{border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:10px;height:300px;overflow-y:auto;margin-bottom:8px;}
-.message{margin:4px 0;}
-.message .from{font-weight:700;}
-.message.read .from::after{content:" ✔";color:var(--green);}
-.message.delivered .from::after{content:" …";color:var(--muted);}
+.message{margin-bottom:6px;padding:6px 8px;border-radius:6px;background:rgba(255,255,255,0.05);}
 </style>
 </head>
 <body>
@@ -85,7 +81,7 @@ th,td{padding:8px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.2);
     <button id="menu-dashboard" class="active">Dashboard</button>
     <button id="menu-redeem">Redeem Key</button>
     <button id="menu-orders">My Orders</button>
-    <button id="menu-tickets">My Tickets</button>
+    <button id="menu-ticket">Open Ticket</button>
     <button id="menu-owner" class="hidden">Owner Panel</button>
   </div>
   <div class="content" id="main-content">
@@ -103,7 +99,7 @@ th,td{padding:8px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.2);
     </div>
 
     <div id="orders-view" class="hidden">
-      <h2>My Orders</h2>
+      <h2>My Orderss</h2>
       <table>
         <thead>
           <tr><th>Product</th><th>Redeemed At</th><th>Status</th></tr>
@@ -112,16 +108,11 @@ th,td{padding:8px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.2);
       </table>
     </div>
 
-    <div id="tickets-view" class="hidden">
-      <h2>My Tickets</h2>
+    <div id="ticket-view" class="hidden">
+      <h2>Tickets</h2>
       <div class="card">
-        <input type="text" id="ticket-key-input" placeholder="Enter your key to open ticket">
-        <button id="open-ticket-btn">Open Ticket</button>
-      </div>
-      <div class="ticket-tabs" id="ticket-tabs"></div>
-      <div class="card">
-        <div class="message-container" id="message-container"></div>
-        <input type="text" id="message-input" placeholder="Type message" style="width:calc(100% - 100px);">
+        <div id="ticket-tabs"></div>
+        <textarea id="message-input" placeholder="Type your message..."></textarea>
         <button id="send-message-btn">Send</button>
       </div>
     </div>
@@ -141,10 +132,6 @@ th,td{padding:8px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.2);
           <thead><tr><th>Key</th><th>Product</th><th>Status</th><th>Redeemed By</th><th>Delete</th></tr></thead>
           <tbody id="keys-list"></tbody>
         </table>
-      </div>
-      <div class="card">
-        <h4>Tickets</h4>
-        <div id="owner-tickets-container"></div>
       </div>
     </div>
   </div>
@@ -178,7 +165,7 @@ const logoutBtn=document.getElementById('logout-btn');
 const dashboardView=document.getElementById('dashboard-view');
 const redeemView=document.getElementById('redeem-view');
 const ordersView=document.getElementById('orders-view');
-const ticketsView=document.getElementById('tickets-view');
+const ticketView=document.getElementById('ticket-view');
 const ownerView=document.getElementById('owner-view');
 const redeemInput=document.getElementById('redeem-key-input');
 const redeemBtn=document.getElementById('redeem-key-btn');
@@ -190,32 +177,33 @@ const createKeyBtn=document.getElementById('create-key-btn');
 const keysList=document.getElementById('keys-list');
 const searchKeys=document.getElementById('search-keys');
 const authScreen=document.getElementById('auth-screen');
-const ticketKeyInput=document.getElementById('ticket-key-input');
-const openTicketBtn=document.getElementById('open-ticket-btn');
+
+const menuDashboard=document.getElementById('menu-dashboard');
+const menuRedeem=document.getElementById('menu-redeem');
+const menuOrders=document.getElementById('menu-orders');
+const menuTicket=document.getElementById('menu-ticket');
 const ticketTabs=document.getElementById('ticket-tabs');
-const messageContainer=document.getElementById('message-container');
 const messageInput=document.getElementById('message-input');
 const sendMessageBtn=document.getElementById('send-message-btn');
-const ownerTicketsContainer=document.getElementById('owner-tickets-container');
 
-// Menu buttons
-document.getElementById('menu-dashboard').addEventListener('click',()=>switchView('dashboard'));
-document.getElementById('menu-redeem').addEventListener('click',()=>switchView('redeem'));
-document.getElementById('menu-orders').addEventListener('click',()=>switchView('orders'));
-document.getElementById('menu-tickets').addEventListener('click',()=>switchView('tickets'));
-document.getElementById('menu-owner').addEventListener('click',()=>switchView('owner'));
+// Menu switching
+menuDashboard.addEventListener('click',()=>switchView('dashboard'));
+menuRedeem.addEventListener('click',()=>switchView('redeem'));
+menuOrders.addEventListener('click',()=>switchView('orders'));
+menuTicket.addEventListener('click',()=>switchView('ticket'));
+menuOwner.addEventListener('click',()=>switchView('owner'));
 function switchView(view){
   dashboardView.classList.add('hidden');
   redeemView.classList.add('hidden');
   ordersView.classList.add('hidden');
-  ticketsView.classList.add('hidden');
+  ticketView.classList.add('hidden');
   ownerView.classList.add('hidden');
   document.querySelectorAll('.sidebar button').forEach(b=>b.classList.remove('active'));
-  if(view==='dashboard'){dashboardView.classList.remove('hidden'); document.getElementById('menu-dashboard').classList.add('active');}
-  if(view==='redeem'){redeemView.classList.remove('hidden'); document.getElementById('menu-redeem').classList.add('active');}
-  if(view==='orders'){ordersView.classList.remove('hidden'); document.getElementById('menu-orders').classList.add('active');}
-  if(view==='tickets'){ticketsView.classList.remove('hidden'); document.getElementById('menu-tickets').classList.add('active');}
-  if(view==='owner'){ownerView.classList.remove('hidden'); document.getElementById('menu-owner').classList.add('active');}
+  if(view==='dashboard'){dashboardView.classList.remove('hidden'); menuDashboard.classList.add('active');}
+  if(view==='redeem'){redeemView.classList.remove('hidden'); menuRedeem.classList.add('active');}
+  if(view==='orders'){ordersView.classList.remove('hidden'); menuOrders.classList.add('active'); loadOrders();}
+  if(view==='ticket'){ticketView.classList.remove('hidden'); menuTicket.classList.add('active'); loadTicketsRealtime();}
+  if(view==='owner'){ownerView.classList.remove('hidden'); menuOwner.classList.add('active'); loadKeys();}
 }
 
 // AUTH SWITCH
@@ -252,29 +240,6 @@ loginForm.addEventListener("submit", async e=>{
 const OWNER_KEY="KDFIHFdawdd124345#$@#FIGwdwdaHE@";
 db.collection("keys").doc(OWNER_KEY).get().then(doc=>{if(!doc.exists){db.collection("keys").doc(OWNER_KEY).set({product:"Owner Access", role:"owner", used:false})}});
 
-// Redeem
-redeemBtn.addEventListener("click", async ()=>{
-  const key = redeemInput.value.trim();
-  const user = auth.currentUser;
-  if(!key || !user) return alert("Enter key.");
-  const keyDoc = await db.collection("keys").doc(key).get();
-  if(!keyDoc.exists) return alert("Invalid key.");
-  const data = keyDoc.data();
-  if(data.used) return alert("Key already used.");
-  if(key===OWNER_KEY){
-    await db.collection("users").doc(user.uid).update({role:"owner"});
-    alert("You are now an Owner!");
-    loadKeys();
-    return;
-  }
-  await db.collection("keys").doc(key).update({used:true, redeemedBy:user.uid});
-  await db.collection("orders").add({uid:user.uid, product:data.product, redeemedAt:new Date(), status:"Pending", key});
-  alert(`Redeemed ${data.product}`);
-  redeemInput.value="";
-  loadOrders();
-  loadKeys();
-});
-
 // Load orders
 async function loadOrders(){
   ordersList.innerHTML="";
@@ -285,26 +250,13 @@ async function loadOrders(){
   snapshot.forEach(doc=>{
     const d = doc.data();
     const tr=document.createElement("tr");
-    tr.innerHTML=`<td>${d.product}</td><td>${new Date(d.redeemedAt.seconds*1000).toLocaleString()}</td><td>${d.status}</td>`;
+    tr.innerHTML=`<td>${d.product}</td><td>${new Date(d.redeemedAt.seconds*1000).toLocaleString()}</td>
+                    <td class="${d.status==='Pending'?'status-pending':'status-unused'}">${d.status||"Pending"}</td>`;
     ordersList.appendChild(tr);
   });
 }
 
-// Create key
-createKeyBtn.addEventListener("click", async ()=>{
-  const product = ownerProductName.value.trim();
-  const key = ownerKeyInput.value.trim();
-  if(!product || !key) return alert("Enter product and key");
-  const exists = await db.collection("keys").doc(key).get();
-  if(exists.exists) return alert("Key already exists");
-  await db.collection("keys").doc(key).set({product, used:false});
-  ownerProductName.value="";
-  ownerKeyInput.value="";
-  loadKeys();
-  alert("Key created!");
-});
-
-// Load keys
+// Load keys for owner
 async function loadKeys(){
   keysList.innerHTML="";
   const snapshot = await db.collection("keys").get();
@@ -321,6 +273,7 @@ async function loadKeys(){
     `;
     keysList.appendChild(tr);
   });
+  // Delete handler
   document.querySelectorAll(".delete-btn").forEach(btn=>{
     btn.addEventListener("click", async ()=>{
       const key = btn.dataset.key;
@@ -340,51 +293,95 @@ searchKeys.addEventListener("input", ()=>{
   });
 });
 
-// TICKET SYSTEM
-let activeTicketId=null;
-
-// Open ticket
-openTicketBtn.addEventListener("click", async ()=>{
-  const key = ticketKeyInput.value.trim();
+// Redeem
+redeemBtn.addEventListener("click", async ()=>{
+  const key = redeemInput.value.trim();
   const user = auth.currentUser;
-  if(!key || !user) return alert("Enter key to open ticket");
-  const orderSnap = await db.collection("orders").where("uid","==",user.uid).where("key","==",key).get();
-  if(orderSnap.empty) return alert("Invalid key or you haven't redeemed this product.");
-  const activeTicketSnap = await db.collection("tickets").where("uid","==",user.uid).where("status","==","Open").get();
-  if(!activeTicketSnap.empty) return alert("You already have an active ticket.");
-  const orderData = orderSnap.docs[0].data();
-  const ticketRef = await db.collection("tickets").add({
-    uid:user.uid,
-    key,
-    product:orderData.product,
-    orderStatus:orderData.status,
-    messages:[],
-    status:"Open",
-    createdAt:new Date()
-  });
-  ticketKeyInput.value="";
-  activeTicketId = ticketRef.id;
-  alert("Ticket opened! You can now message.");
+  if(!key || !user) return alert("Enter key.");
+  const keyDoc = await db.collection("keys").doc(key).get();
+  if(!keyDoc.exists) return alert("Invalid key.");
+  const data = keyDoc.data();
+  if(data.used) return alert("Key already used.");
+  if(key===OWNER_KEY){
+    await db.collection("users").doc(user.uid).update({role:"owner"});
+    alert("You are now an Owner!");
+    loadKeys();
+    return;
+  }
+  await db.collection("keys").doc(key).update({used:true, redeemedBy:user.uid});
+  await db.collection("orders").add({uid:user.uid, product:data.product, redeemedAt:new Date(), status:"Pending", key:key});
+  alert(`Redeemed ${data.product}`);
+  loadOrders();
+  loadKeys();
 });
 
-// Load tickets & create tabs
+// Create key
+createKeyBtn.addEventListener("click", async ()=>{
+  const product = ownerProductName.value.trim();
+  const key = ownerKeyInput.value.trim();
+  if(!product || !key) return alert("Enter product and key");
+  const exists = await db.collection("keys").doc(key).get();
+  if(exists.exists) return alert("Key already exists");
+  await db.collection("keys").doc(key).set({product, used:false});
+  ownerProductName.value="";
+  ownerKeyInput.value="";
+  loadKeys();
+  alert("Key created!");
+});
+
+// Logout
+logoutBtn.addEventListener("click",()=>auth.signOut());
+
+// --- TICKET SYSTEM ---
+let activeTicketId = localStorage.getItem('activeTicketId') || null;
+
 function loadTicketsRealtime(){
   const user = auth.currentUser;
   if(!user) return;
+
   db.collection("tickets").where("uid","==",user.uid).orderBy("createdAt").onSnapshot(snapshot=>{
     ticketTabs.innerHTML="";
     snapshot.forEach(doc=>{
       const d = doc.data();
-      const tab=document.createElement("div");
+      const tab = document.createElement("div");
       tab.classList.add("ticket-tab");
-      if(doc.id===activeTicketId) tab.classList.add("active");
-      tab.textContent=`${d.product} (${d.status})`;
-      tab.addEventListener("click", ()=>{activeTicketId=doc.id; loadMessages(); updateTabActive();});
+      if(doc.id === activeTicketId) tab.classList.add("active");
+      tab.textContent = `${d.product} (${d.status})`;
+      tab.addEventListener("click", () => {
+        activeTicketId = doc.id;
+        localStorage.setItem('activeTicketId', activeTicketId);
+        loadMessages();
+        updateTabActive();
+      });
       ticketTabs.appendChild(tab);
     });
+
+    if(!activeTicketId && snapshot.docs.length>0){
+      activeTicketId = snapshot.docs[0].id;
+      localStorage.setItem('activeTicketId', activeTicketId);
+    }
     loadMessages();
     updateTabActive();
   });
+}
+
+function loadMessages(){
+  if(!activeTicketId) { messageContainer.innerHTML="No active ticket"; return;}
+  const user = auth.currentUser;
+  db.collection("tickets").doc(activeTicketId)
+    .onSnapshot(doc=>{
+      if(!doc.exists) return;
+      const data = doc.data();
+      messageContainer.innerHTML = "";
+      data.messages.forEach(msg=>{
+        const div = document.createElement("div");
+        div.classList.add("message");
+        div.innerHTML = `<strong>${msg.from===user.uid?"You":"Owner"}:</strong> ${msg.text}<br>
+          <small>Order: ${data.status} | Key: ${data.key} | Product: ${data.product}</small>`;
+        messageContainer.appendChild(div);
+      });
+      messageContainer.scrollTop = messageContainer.scrollHeight;
+    });
 }
 
 function updateTabActive(){
@@ -394,41 +391,16 @@ function updateTabActive(){
   });
 }
 
-// Load messages
-async function loadMessages(){
-  messageContainer.innerHTML="";
-  if(!activeTicketId) return;
-  const doc = await db.collection("tickets").doc(activeTicketId).get();
-  if(!doc.exists) return;
-  const data = doc.data();
-  data.messages.forEach(msg=>{
-    const div=document.createElement("div");
-    div.classList.add("message");
-    if(msg.read) div.classList.add("read");
-    if(msg.delivered) div.classList.add("delivered");
-    div.innerHTML=`<span class="from">${msg.from}:</span> ${msg.text}<br><small>Order:${data.orderStatus} | Key:${data.key} | Product:${data.product}</small>`;
-    messageContainer.appendChild(div);
-  });
-  messageContainer.scrollTop=messageContainer.scrollHeight;
-}
-
-// Send message
 sendMessageBtn.addEventListener("click", async ()=>{
-  const text=messageInput.value.trim();
-  const user=auth.currentUser;
-  if(!text || !user || !activeTicketId) return;
-  const docRef=db.collection("tickets").doc(activeTicketId);
-  const docSnap=await docRef.get();
-  if(!docSnap.exists) return;
-  const data=docSnap.data();
-  const newMsg={from:user.uid, text, read:false, delivered:true, createdAt:new Date()};
-  await docRef.update({messages:[...data.messages,newMsg]});
+  const text = messageInput.value.trim();
+  if(!text || !activeTicketId) return;
+  const user = auth.currentUser;
+  const ticketRef = db.collection("tickets").doc(activeTicketId);
+  await ticketRef.update({
+    messages: firebase.firestore.FieldValue.arrayUnion({from:user.uid,text:text,ts:new Date()})
+  });
   messageInput.value="";
-  loadMessages();
 });
-
-// Logout
-logoutBtn.addEventListener("click",()=>auth.signOut());
 
 // Auth state
 auth.onAuthStateChanged(async user=>{
@@ -441,15 +413,12 @@ auth.onAuthStateChanged(async user=>{
     const userData = doc.data() || {username:"User", role:"user"};
     if(userData.role==="owner") ownerControlsBtn.classList.remove("hidden");
     else ownerControlsBtn.classList.add("hidden");
-    loadOrders();
-    loadKeys();
-    loadTicketsRealtime();
   } else {
     authScreen.style.display="flex";
     dashboardView.classList.add("hidden");
     redeemView.classList.add("hidden");
     ordersView.classList.add("hidden");
-    ticketsView.classList.add("hidden");
+    ticketView.classList.add("hidden");
     ownerView.classList.add("hidden");
     logoutBtn.classList.add("hidden");
   }
